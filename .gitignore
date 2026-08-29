@@ -1,0 +1,13 @@
+# Local data previews and operating-system files
+.DS_Store
+*.tmp
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+coverage/
+
+# Local secrets
+.env
+.env.local

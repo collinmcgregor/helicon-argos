@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import type { StatusTone } from '@/lib/types';
+import { eventLabel } from '@/lib/present';
 
 const TONE_COLOR: Record<StatusTone, string> = {
   ok: 'var(--color-status-ok)',
@@ -38,7 +39,7 @@ export function TimelineRow({
       </div>
       <span className="w-[150px] shrink-0 font-mono text-[11px] text-text-muted">{timestamp}</span>
       <span className="shrink-0 rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
-        {eventType}
+        {eventLabel(eventType)}
       </span>
       <span className="min-w-0 flex-1 truncate text-[13px] text-text-secondary">{children}</span>
       <button

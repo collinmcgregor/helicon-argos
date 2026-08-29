@@ -31,6 +31,7 @@ import {
   type TrendWindow,
 } from '@/lib/queries/machines';
 import { CycleTrendChart } from './CycleTrendChart';
+import { eventLabel, facilityLabel, jobLabel, machineLabel } from '@/lib/present';
 
 const nf = new Intl.NumberFormat('en-US');
 const WINDOWS: TrendWindow[] = ['2w', '4w', 'all'];

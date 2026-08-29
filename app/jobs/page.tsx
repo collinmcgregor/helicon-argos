@@ -22,6 +22,7 @@ import {
 } from '@/lib/queries/jobs';
 import { JobsFilterBar } from './filters';
 import { money, STATUS_TONE } from './format';
+import { customerLabel, facilityLabel, jobLabel, materialLabel, partLabel, reasonLabel } from '@/lib/present';
 
 const EXPLORER_STATUSES = new Set<ExplorerStatus>([
   'created',

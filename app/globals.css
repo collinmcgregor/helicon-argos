@@ -1,46 +1,42 @@
 @import "tailwindcss";
 
-/* Laminate palette v2 — industrial-materials story.
-   Light "paper/bone" theme is the default; dark "cured carbon" is opted into via
-   data-theme="dark" on <html> (set pre-paint by the inline script in app/layout.tsx).
-   Both themes flow through the same custom properties; all pairs below hold ≥4.5:1
-   (AA) for text on bg-0..bg-3. Resin amber stays the brand accent, chrome only. */
+/* Quiet, high-contrast operational canvas. Color categorizes work; it never
+   becomes decoration or a full-card background. */
 @theme {
-  --color-bg-0: #eeeae0;
-  --color-bg-1: #f4f1e9;
-  --color-bg-2: #f9f7f1;
-  --color-bg-3: #eae4d5;
-  --color-bg-inset: #e9e4d8;
-  --color-border: #d6cfc0;
-  --color-border-strong: #ada393;
-  --color-border-faint: #e4dfd2;
-  --color-text-primary: #23262b;
-  --color-text-secondary: #545b61;
-  --color-text-muted: #5f666d;
-  --color-accent: #3d6a8f;
-  --color-accent-resin: #93540c;
-  --color-status-ok: #2a7050;
-  --color-status-ok-dim: #2a70501f;
-  --color-status-warn: #7d6112;
-  --color-status-warn-dim: #7d61121f;
-  --color-status-critical: #a8482e;
-  --color-status-critical-dim: #a8482e1f;
-  --color-status-info: #3d6a8f;
-  --color-status-info-dim: #3d6a8f1f;
-  --color-series-1: #38678f;
-  --color-series-2: #a2552f;
-  --color-series-3: #2e7a5c;
-  --color-series-4: #8c6d1d;
-  --color-series-5: #96566e;
-  --color-series-6: #675f94;
-  --color-chart-grid: #e0dacb;
+  --color-bg-0: #f7f8fa;
+  --color-bg-1: #ffffff;
+  --color-bg-2: #ffffff;
+  --color-bg-3: #eef3f8;
+  --color-bg-inset: #f1f3f6;
+  --color-border: #dce1e7;
+  --color-border-strong: #c8d0d9;
+  --color-border-faint: #e8ebef;
+  --color-text-primary: #17212b;
+  --color-text-secondary: #56616d;
+  --color-text-muted: #7d8792;
+  --color-accent: #245b8f;
+  --color-accent-resin: #76534b;
+  --color-status-ok: #3d766e;
+  --color-status-ok-dim: #3d766e1a;
+  --color-status-warn: #7b5a7a;
+  --color-status-warn-dim: #7b5a7a1a;
+  --color-status-critical: #76534b;
+  --color-status-critical-dim: #76534b1a;
+  --color-status-info: #536b8a;
+  --color-status-info-dim: #536b8a1a;
+  --color-series-1: #536b8a;
+  --color-series-2: #76534b;
+  --color-series-3: #3d766e;
+  --color-series-4: #7b5a7a;
+  --color-series-5: #6a667d;
+  --color-series-6: #657783;
+  --color-chart-grid: #e3e7eb;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --radius-sm: 2px;
 }
 
 :root {
-  --weave-ink: rgba(35, 38, 43, 0.03);
   color-scheme: light;
 }
 
@@ -57,7 +53,7 @@
   --color-text-secondary: #a4adb0;
   --color-text-muted: #84909a;
   --color-accent: #7fa3c4;
-  --color-accent-resin: #e8a33d;
+  --color-accent-resin: #d1a89b;
   --color-status-ok: #57a67f;
   --color-status-ok-dim: #57a67f1f;
   --color-status-warn: #c9a24a;
@@ -73,7 +69,6 @@
   --color-series-5: #b57f92;
   --color-series-6: #9089bd;
   --color-chart-grid: #20262b;
-  --weave-ink: rgba(233, 235, 232, 0.012);
   color-scheme: dark;
 }
 
@@ -102,23 +97,6 @@ body {
   animation: laminate-pulse 1.6s ease-in-out infinite;
 }
 
-/* twill weave texture — top bar only, never on data surfaces */
-.weave-texture {
-  background-image: repeating-linear-gradient(
-      45deg,
-      var(--weave-ink) 0px,
-      var(--weave-ink) 2px,
-      transparent 2px,
-      transparent 6px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      var(--weave-ink) 0px,
-      var(--weave-ink) 2px,
-      transparent 2px,
-      transparent 6px
-    );
-}
 
 /* theme toggle: active segment driven by the html attribute, not React state,
    so the pre-paint inline script keeps it correct with zero hydration flash */

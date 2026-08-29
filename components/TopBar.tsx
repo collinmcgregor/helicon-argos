@@ -11,9 +11,7 @@ const FACILITIES = [
   { value: 'la_02', label: 'LA 2' },
 ] as const;
 
-// 48px top bar: mono breadcrumb · facility selector (persisted in ?facility=) ·
-// user chip (mono initials + resin ADMIN tag, sign-out-only menu). Twill weave
-// texture lives here only — never on data surfaces.
+// 48px top bar: breadcrumb · facility selector (persisted in ?facility=) · user menu.
 export function TopBar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -32,7 +30,7 @@ export function TopBar() {
   };
 
   return (
-    <header className="weave-texture fixed left-[220px] right-0 top-0 z-20 flex h-12 items-center justify-between border-b border-border bg-bg-1 px-4">
+    <header className="fixed left-[220px] right-0 top-0 z-20 flex h-12 items-center justify-between border-b border-border bg-bg-1 px-4">
       <span className="font-mono text-[12.5px] text-text-secondary">
         {crumbs.map((crumb, i) => (
           <span key={i}>

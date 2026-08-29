@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "ingest": "./scripts/ingest.sh",
-    "validate": "psql \"${DATABASE_URL:-$(grep -E '^DATABASE_URL=' .env.local | cut -d= -f2-)}\" -v ON_ERROR_STOP=1 -f scripts/validate.sql",
+    "validate": "set -a; . ./.env.local; set +a; psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f scripts/validate.sql",
     "test": "vitest run",
     "check": "npm run validate && npm run test && next build"
   },

@@ -254,7 +254,7 @@ export default async function JobDetailPage({
                 ))}
                 {openBlock && (
                   <span className="text-[11px] text-status-critical">
-                    Still open — no unblock has followed {openBlock.event_id}.
+                    Still open — no unblock has followed this event.
                   </span>
                 )}
               </div>

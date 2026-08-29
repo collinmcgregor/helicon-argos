@@ -7,6 +7,7 @@ import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
 import { listMachines } from '@/lib/queries/machines';
+import { machineLabel } from '@/lib/present';
 
 const nf = new Intl.NumberFormat('en-US');
 

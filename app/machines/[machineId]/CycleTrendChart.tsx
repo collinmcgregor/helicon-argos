@@ -1,5 +1,6 @@
 import { formatDate, formatDateShort, formatEntityId } from '@/lib/display';
 import type { RecoveredIncident, WeeklyTrendPoint } from '@/lib/queries/machines';
+import { eventLabel } from '@/lib/present';
 
 const W = 720;
 const H = 240;

@@ -418,13 +418,11 @@ export async function getMachineStrip(sql: Sql, facility?: FacilityId): Promise<
     where c.machine_id like 'press_%' ${fac}
     group by c.machine_id
     order by c.machine_id`;
-  const medians = rows.map((r) => r.median);
   return rows.map((r) => {
     const others = rows.filter((o) => o.machine_id !== r.machine_id).map((o) => o.median);
     const fleet = others.sort((a, b) => a - b)[Math.floor(others.length / 2)] ?? r.median;
     const tone: StatusTone =
       r.median > fleet * 1.15 ? 'warn' : r.recovered ? 'info' : 'ok';
-    void medians;
     return {
       machine_id: r.machine_id,
       medianCycleSeconds: r.median,

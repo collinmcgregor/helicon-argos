@@ -46,6 +46,18 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   exhausts the Supabase session pool (15) → `EMAXCONNSESSION`.
 - Overview alert selection is URL state: `/?alert=<alert_id>` re-renders the Selected
   investigation panel server-side (rows link there, not to their destinations).
+## Ontology Control (W1-admin)
+
+- `ontology_*` config tables are append-only by convention: edit/archive INSERT a new
+  version linked via `prior_version_id` (never UPDATE/DELETE); "current" = latest version
+  per key (`DISTINCT ON (key) … ORDER BY key, version DESC`), archived = latest version
+  has `status='archived'`. `lib/queries/ontology.ts` is the only writer.
+- Map node record counts come from `recordCounts()`'s fixed allowlist keyed by
+  `source_mapping` (`APPROVED_SOURCES` in the same file); an unknown mapping renders a
+  ghost node, so a new approved source must be added in both places.
+- `tests/queries/ontology.test.ts` writes rows keyed `w1admin_test_*` to the shared DB and
+  deletes them in before/afterAll; `validate.sql` uses `>=` counts so leftovers can't break
+  it, but keep test keys prefixed.
 
 ## Maintaining this file
 
@@ -53,3 +65,13 @@ Keep this file for knowledge useful to almost every future agent session in this
 Do not repeat what the codebase already shows; point to the authoritative file or command instead.
 Prefer rewriting or pruning existing entries over appending new ones.
 When updating this file, preserve this bar for all agents and keep entries concise.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

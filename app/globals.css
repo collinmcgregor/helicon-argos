@@ -1,37 +1,80 @@
 @import "tailwindcss";
 
+/* Laminate palette v2 — industrial-materials story.
+   Light "paper/bone" theme is the default; dark "cured carbon" is opted into via
+   data-theme="dark" on <html> (set pre-paint by the inline script in app/layout.tsx).
+   Both themes flow through the same custom properties; all pairs below hold ≥4.5:1
+   (AA) for text on bg-0..bg-3. Resin amber stays the brand accent, chrome only. */
 @theme {
-  --color-bg-0: #0b0e12;
-  --color-bg-1: #10151b;
-  --color-bg-2: #151b22;
-  --color-bg-3: #1a222b;
-  --color-bg-inset: #0d1116;
-  --color-border: #232c36;
-  --color-border-strong: #33404d;
-  --color-border-faint: #1a222b;
-  --color-text-primary: #e8edf2;
-  --color-text-secondary: #9aa7b4;
-  --color-text-muted: #5c6b7a;
-  --color-accent: #4c90f0;
-  --color-accent-resin: #e8a33d;
-  --color-status-ok: #3fb950;
-  --color-status-ok-dim: #3fb9501f;
-  --color-status-warn: #e8a33d;
-  --color-status-warn-dim: #e8a33d1f;
-  --color-status-critical: #f0564a;
-  --color-status-critical-dim: #f0564a1f;
-  --color-status-info: #4c90f0;
-  --color-status-info-dim: #4c90f01f;
-  --color-series-1: #3987e5;
-  --color-series-2: #d95926;
-  --color-series-3: #199e70;
-  --color-series-4: #c98500;
-  --color-series-5: #d55181;
-  --color-series-6: #9085e9;
-  --color-chart-grid: #1a222b;
+  --color-bg-0: #eeeae0;
+  --color-bg-1: #f4f1e9;
+  --color-bg-2: #f9f7f1;
+  --color-bg-3: #eae4d5;
+  --color-bg-inset: #e9e4d8;
+  --color-border: #d6cfc0;
+  --color-border-strong: #ada393;
+  --color-border-faint: #e4dfd2;
+  --color-text-primary: #23262b;
+  --color-text-secondary: #545b61;
+  --color-text-muted: #5f666d;
+  --color-accent: #3d6a8f;
+  --color-accent-resin: #93540c;
+  --color-status-ok: #2a7050;
+  --color-status-ok-dim: #2a70501f;
+  --color-status-warn: #7d6112;
+  --color-status-warn-dim: #7d61121f;
+  --color-status-critical: #a8482e;
+  --color-status-critical-dim: #a8482e1f;
+  --color-status-info: #3d6a8f;
+  --color-status-info-dim: #3d6a8f1f;
+  --color-series-1: #38678f;
+  --color-series-2: #a2552f;
+  --color-series-3: #2e7a5c;
+  --color-series-4: #8c6d1d;
+  --color-series-5: #96566e;
+  --color-series-6: #675f94;
+  --color-chart-grid: #e0dacb;
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --radius-sm: 2px;
+}
+
+:root {
+  --weave-ink: rgba(35, 38, 43, 0.03);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --color-bg-0: #101214;
+  --color-bg-1: #15181b;
+  --color-bg-2: #1a1e21;
+  --color-bg-3: #22272c;
+  --color-bg-inset: #0c0e10;
+  --color-border: #2a3036;
+  --color-border-strong: #3f474f;
+  --color-border-faint: #22272c;
+  --color-text-primary: #e9ebe8;
+  --color-text-secondary: #a4adb0;
+  --color-text-muted: #84909a;
+  --color-accent: #7fa3c4;
+  --color-accent-resin: #e8a33d;
+  --color-status-ok: #57a67f;
+  --color-status-ok-dim: #57a67f1f;
+  --color-status-warn: #c9a24a;
+  --color-status-warn-dim: #c9a24a1f;
+  --color-status-critical: #d97155;
+  --color-status-critical-dim: #d971551f;
+  --color-status-info: #7fa3c4;
+  --color-status-info-dim: #7fa3c41f;
+  --color-series-1: #6b96bd;
+  --color-series-2: #c5744e;
+  --color-series-3: #58a184;
+  --color-series-4: #c09b4a;
+  --color-series-5: #b57f92;
+  --color-series-6: #9089bd;
+  --color-chart-grid: #20262b;
+  --weave-ink: rgba(233, 235, 232, 0.012);
+  color-scheme: dark;
 }
 
 body {
@@ -63,16 +106,24 @@ body {
 .weave-texture {
   background-image: repeating-linear-gradient(
       45deg,
-      rgba(232, 237, 242, 0.012) 0px,
-      rgba(232, 237, 242, 0.012) 2px,
+      var(--weave-ink) 0px,
+      var(--weave-ink) 2px,
       transparent 2px,
       transparent 6px
     ),
     repeating-linear-gradient(
       -45deg,
-      rgba(232, 237, 242, 0.012) 0px,
-      rgba(232, 237, 242, 0.012) 2px,
+      var(--weave-ink) 0px,
+      var(--weave-ink) 2px,
       transparent 2px,
       transparent 6px
     );
+}
+
+/* theme toggle: active segment driven by the html attribute, not React state,
+   so the pre-paint inline script keeps it correct with zero hydration flash */
+:root:not([data-theme='dark']) .theme-toggle button[data-set='light'],
+:root[data-theme='dark'] .theme-toggle button[data-set='dark'] {
+  background: var(--color-bg-3);
+  color: var(--color-text-primary);
 }

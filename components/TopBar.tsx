@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const FACILITIES = [
   { value: null, label: 'All facilities' },
@@ -58,6 +59,8 @@ export function TopBar() {
             );
           })}
         </div>
+
+        <ThemeToggle />
 
         <div className="relative">
           <button

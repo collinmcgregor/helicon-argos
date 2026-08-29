@@ -24,7 +24,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${plexMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-theme="light"
+      suppressHydrationWarning
+      className={`${inter.variable} ${plexMono.variable} h-full antialiased`}
+    >
+      <head>
+        {/* pre-paint theme restore; light is the default when nothing is stored */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(localStorage.getItem("argos-theme")==="dark")document.documentElement.setAttribute("data-theme","dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="min-h-full">
         <Suspense>
           <NavRail />

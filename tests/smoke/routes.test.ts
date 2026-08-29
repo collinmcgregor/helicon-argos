@@ -142,89 +142,65 @@ describe('w1-jobs routes', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W1-machines · routes: /machines/:machineId, /alerts            (append here)
+// W1-machines · routes: /machines, /machines/:machineId, /alerts   (append here)
 // ---------------------------------------------------------------------------
-import { beforeAll, afterAll } from 'vitest';
-import { spawn, type ChildProcess } from 'node:child_process';
-
 describe('w1-machines routes', () => {
-  // No deployed URL yet, so this section boots its own dev server on a
-  // task-unique port; SMOKE_BASE_URL (Wave 2) takes over when set.
-  const PORT = 3907;
-  const base = process.env.SMOKE_BASE_URL ?? `http://localhost:${PORT}`;
-  const ownServer = !process.env.SMOKE_BASE_URL;
-  let server: ChildProcess | undefined;
+  // Same gating as w1-overview: no server runs during `npm run check`, so the
+  // always-on assertions recheck these routes' render inputs from SQL; HTTP
+  // checks arm when the captain sets SMOKE_BASE_URL in Wave 2.
+  it('serves the machine-detail render inputs', async () => {
+    const [row] = await sql<
+      { press03_median: number; press03_maint: number; incident_events: number; qc_contamination: number }[]
+    >`
+      select (select round(median_cycle_seconds) from machine_stats where machine_id = 'press_03')::int as press03_median,
+             (select maintenance_count from machine_stats where machine_id = 'press_03')::int as press03_maint,
+             (select count(*) from events where machine_id = 'press_06'
+                and event_id in ('evt_010715','evt_011175'))::int as incident_events,
+             (select count(*) from machine_quality_attribution
+                where machine_id in ('qc_01','qc_02'))::int as qc_contamination`;
+    expect(row.press03_median).toBe(1294);
+    expect(row.press03_maint).toBe(0);
+    expect(row.incident_events).toBe(2);
+    expect(row.qc_contamination).toBe(0);
+  });
 
-  beforeAll(async () => {
-    if (!ownServer) return;
-    const env = Object.fromEntries(
-      Object.entries(process.env).filter(([k]) => k !== 'NODE_ENV' && k !== 'VITEST'),
-    ) as NodeJS.ProcessEnv;
-    server = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
-      env,
-      stdio: 'ignore',
-      detached: true,
-    });
-    const deadline = Date.now() + 150_000;
-    for (const path of ['/machines/press_03', '/machines/press_06', '/machines', '/alerts']) {
-      for (;;) {
-        try {
-          if ((await fetch(base + path)).status === 200) break;
-        } catch {
-          // server not accepting connections yet
-        }
-        if (Date.now() > deadline) throw new Error(`dev server never served ${path}`);
-        await new Promise((r) => setTimeout(r, 1000));
+  describe.runIf(!!process.env.SMOKE_BASE_URL)('deployed', () => {
+    it('GET /machines/press_03 shows the degradation headline and derived attribution', async () => {
+      const res = await fetch(`${BASE}/machines/press_03`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      // the DerivedBadge label is lowercase in markup, uppercased by CSS
+      for (const key of ['press_03', '1,294', '25% above', 'no maintenance recorded', 'Job → Cycle association', 'derived']) {
+        expect(html).toContain(key);
       }
-    }
-  }, 180_000);
+    });
 
-  afterAll(() => {
-    if (!server?.pid) return;
-    try {
-      process.kill(-server.pid, 'SIGKILL');
-    } catch {
-      server.kill('SIGKILL');
-    }
-  });
+    it('GET /machines/press_06 annotates the incident as sequence, never cause', async () => {
+      const res = await fetch(`${BASE}/machines/press_06`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      for (const key of ['evt_010715', 'evt_011175', 'followed by', '1,810']) {
+        expect(html).toContain(key);
+      }
+      expect(html.toLowerCase()).not.toContain('caused');
+    });
 
-  const page = async (path: string) => {
-    const res = await fetch(base + path);
-    expect(res.status).toBe(200);
-    return res.text();
-  };
+    it('GET /machines lists the six presses', async () => {
+      const res = await fetch(`${BASE}/machines`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('press_01');
+      expect(html).toContain('press_06');
+    });
 
-  it('/machines/press_03 shows the degradation headline and derived attribution', async () => {
-    const html = await page('/machines/press_03');
-    expect(html).toContain('press_03');
-    expect(html).toContain('1,294');
-    expect(html).toContain('25% above');
-    expect(html).toContain('no maintenance recorded');
-    expect(html).toContain('Job → Cycle association');
-    expect(html.toLowerCase()).toContain('derived');
-  });
-
-  it('/machines/press_06 annotates the incident as sequence, never cause', async () => {
-    const html = await page('/machines/press_06');
-    expect(html).toContain('evt_010715');
-    expect(html).toContain('evt_011175');
-    expect(html).toContain('followed by');
-    expect(html).toContain('1,810');
-    expect(html.toLowerCase()).not.toContain('caused');
-  });
-
-  it('/machines lists the six presses', async () => {
-    const html = await page('/machines');
-    expect(html).toContain('press_01');
-    expect(html).toContain('press_06');
-  });
-
-  it('/alerts renders the derived findings with evidence ids', async () => {
-    const html = await page('/alerts');
-    expect(html).toContain('press_03');
-    expect(html).toContain('26 jobs');
-    expect(html).toContain('Recovered incident — press_06');
-    expect(html).toContain('evt_010715');
+    it('GET /alerts renders the derived findings with evidence ids', async () => {
+      const res = await fetch(`${BASE}/alerts`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      for (const key of ['press_03', '26 jobs', 'Recovered incident — press_06', 'evt_010715']) {
+        expect(html).toContain(key);
+      }
+    });
   });
 });
 

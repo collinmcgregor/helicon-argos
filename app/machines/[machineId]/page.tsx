@@ -18,7 +18,6 @@ import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
-import { TimelineRow } from '@/components/TimelineRow';
 import {
   getAffectedJobs,
   getEvidenceLog,
@@ -95,18 +94,6 @@ export default async function MachineDetailPage({
     getEvidenceLog(sql, machineId),
   ]);
 
-  const headline = [
-    machine.pctAboveFleet !== null
-      ? `runs ${machine.pctAboveFleet}% above the fleet's ${formatMinutes(machine.fleetBandLowSeconds ?? 0)}–${formatMinutes(machine.fleetBandHighSeconds ?? 0)} band`
-      : null,
-    machine.cycleTimeDriftPct !== null && machine.cycleTimeDriftPct > 1
-      ? `cycle time up ${machine.cycleTimeDriftPct}% over the period`
-      : null,
-    machine.maintenanceCount === 0
-      ? 'no maintenance on record'
-      : `${machine.maintenanceCount} maintenance event${machine.maintenanceCount === 1 ? '' : 's'}`,
-  ].filter((s): s is string => s !== null);
-
   const fleetRates = fleetAttribution.map((r) => r.failRatePct);
   const median = machine.medianCycleSeconds;
 
@@ -123,15 +110,40 @@ export default async function MachineDetailPage({
         {formatEntityId(machine.machine_id)}
       </PageTitle>
 
-      <div className="flex flex-col gap-1">
-        <span className="font-mono text-[12.5px] text-text-secondary">
-          {formatFacility(machine.facility_id)} · {nf.format(machine.cycleCount)} cycles ·{' '}
-          {nf.format(machine.jobCount)} jobs · median cycle{' '}
-          {median !== null ? formatMinutes(median) : '—'}
-        </span>
-        {headline.length > 0 && (
-          <span className="text-[13px] text-text-secondary">{headline.join(' · ')}</span>
-        )}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="border border-border bg-bg-2 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Typical cycle</div>
+          <div className="mt-1 font-mono text-[22px] font-medium text-text-primary">
+            {median !== null ? formatMinutes(median) : '—'}
+          </div>
+          <div className="text-[11px] text-text-secondary">{nf.format(machine.cycleCount)} recorded cycles</div>
+        </div>
+        <div className="border border-border bg-bg-2 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Compared with fleet</div>
+          <div className="mt-1 font-mono text-[22px] font-medium text-status-critical">
+            {machine.pctAboveFleet !== null ? `+${machine.pctAboveFleet}%` : '—'}
+          </div>
+          <div className="text-[11px] text-text-secondary">slower than other presses</div>
+        </div>
+        <div className="border border-border bg-bg-2 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Direction</div>
+          <div className="mt-1 font-mono text-[22px] font-medium text-status-warn">
+            {machine.cycleTimeDriftPct !== null ? `+${machine.cycleTimeDriftPct}%` : '—'}
+          </div>
+          <div className="text-[11px] text-text-secondary">cycle time worsening</div>
+        </div>
+        <div className="border border-border bg-bg-2 px-3 py-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Maintenance</div>
+          <div className="mt-1 text-[22px] font-medium text-text-primary">
+            {machine.maintenanceCount === 0 ? 'None' : machine.maintenanceCount}
+          </div>
+          <div className="text-[11px] text-text-secondary">
+            {machine.maintenanceCount === 0 ? 'no service on record' : 'service events on record'}
+          </div>
+        </div>
+        <div className="col-span-2 text-[11px] text-text-muted lg:col-span-4">
+          {formatFacility(machine.facility_id)} · {nf.format(machine.jobCount)} jobs have run on this press · Fleet typical cycle: {formatMinutes(machine.fleetBandLowSeconds ?? 0)}–{formatMinutes(machine.fleetBandHighSeconds ?? 0)}
+        </div>
         {incident && (
           <span className="text-[13px] text-text-secondary">
             A{' '}
@@ -182,30 +194,26 @@ export default async function MachineDetailPage({
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Panel label="Evidence log" count={evidence.length} padded={false}>
-          <div className="max-h-[320px] overflow-y-auto px-4">
-            {evidence.map((e, i) => (
-              <TimelineRow
-                key={`${e.event_id}-${i}`}
-                timestamp={formatStamp(e.timestamp)}
-                eventType={e.event_type}
-                eventId={e.event_id}
-                tone={
-                  e.event_type === 'sensor_glitch'
-                    ? 'warn'
-                    : e.event_type === 'maintenance_ping'
-                      ? 'info'
-                      : median !== null && Number(e.metadata.cycle_time_seconds) > median * 1.25
-                        ? 'warn'
-                        : 'ok'
-                }
-              >
-                {e.event_type === 'cycle_completed'
-                  ? `job ${formatJobId(e.job_id ?? '—')} · qty ${e.metadata.quantity ?? '—'} · ${nf.format(Number(e.metadata.cycle_time_seconds))}s`
-                  : e.event_type === 'sensor_glitch'
-                    ? `${formatLabelLower(String(e.metadata.signal ?? 'sensor'))} signal glitch`
-                    : 'maintenance ping'}
-              </TimelineRow>
-            ))}
+          <div className="max-h-[360px] overflow-auto">
+            <Table>
+              <THead>
+                <tr><Th>Time</Th><Th>Event</Th><Th>Job</Th><Th numeric>Quantity</Th><Th numeric>Cycle time</Th><Th>Source ID</Th></tr>
+              </THead>
+              <tbody>
+                {evidence.map((e, i) => (
+                  <Tr key={`${e.event_id}-${i}`}>
+                    <Td mono className="whitespace-nowrap">{formatStamp(e.timestamp)}</Td>
+                    <Td>{e.event_type === 'cycle_completed' ? 'Cycle completed' : e.event_type === 'sensor_glitch' ? 'Sensor glitch' : 'Maintenance ping'}</Td>
+                    <Td mono>
+                      {e.job_id ? <Link href={`/jobs/${e.job_id}` as Route} className="text-accent hover:underline">{formatJobId(e.job_id)}</Link> : '—'}
+                    </Td>
+                    <Td numeric>{e.metadata.quantity == null ? '—' : String(e.metadata.quantity)}</Td>
+                    <Td numeric>{e.metadata.cycle_time_seconds ? formatMinutes(Number(e.metadata.cycle_time_seconds)) : '—'}</Td>
+                    <Td mono className="whitespace-nowrap text-text-muted">{e.event_id}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
           </div>
         </Panel>
 
@@ -273,21 +281,49 @@ export default async function MachineDetailPage({
                 presses)
               </span>
             </div>
-            <span className="text-[11px] text-text-muted">{attribution.method}</span>
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="pr-1 font-mono text-[11px] text-text-muted">
-                {nf.format(attribution.failedEvents)}/{nf.format(attribution.inspectionEvents)}{' '}
-                failed inspection events · latest evidence:
-              </span>
-              {attribution.supportingEventIds.map((id) => (
-                <span
-                  key={id}
-                  className="rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[12.5px] text-text-secondary"
-                >
-                  {id}
-                </span>
-              ))}
+            <div className="max-w-2xl">
+              <div className="mb-1 flex justify-between text-[11px] text-text-muted">
+                <span>Inspection failure rate</span>
+                <span>Fleet range: {Math.min(...fleetRates)}–{Math.max(...fleetRates)}%</span>
+              </div>
+              <div className="relative h-3 overflow-hidden bg-bg-inset" aria-label="Inspection failure rate compared with fleet">
+                <div className="h-full bg-status-critical-dim" style={{ width: `${attribution.failRatePct}%` }} />
+                <div
+                  className="absolute top-0 h-full w-0.5 bg-status-info"
+                  style={{ left: `${Math.min(...fleetRates)}%` }}
+                  title="Low end of fleet range"
+                />
+                <div
+                  className="absolute top-0 h-full w-0.5 bg-status-info"
+                  style={{ left: `${Math.max(...fleetRates)}%` }}
+                  title="High end of fleet range"
+                />
+              </div>
+              <div className="mt-1 text-[11px] text-text-muted">
+                {nf.format(attribution.failedEvents)} failed of {nf.format(attribution.inspectionEvents)} inspections. Blue markers show the other presses’ range.
+              </div>
             </div>
+            <details className="border-t border-border-faint pt-2">
+              <summary className="cursor-pointer text-[12px] font-medium text-accent">
+                Show 5 raw inspection events used as evidence
+              </summary>
+              <div className="mt-2 overflow-x-auto">
+                <Table>
+                  <THead><tr><Th>Event</Th><Th>Time</Th><Th>Job</Th><Th>Defect</Th></tr></THead>
+                  <tbody>
+                    {attribution.rawEvidence.map((event) => (
+                      <Tr key={event.eventId}>
+                        <Td mono>{event.eventId}</Td>
+                        <Td mono>{formatStamp(event.timestamp)}</Td>
+                        <Td mono><Link href={`/jobs/${event.jobId}` as Route} className="text-accent hover:underline">{formatJobId(event.jobId)}</Link></Td>
+                        <Td>{event.defectCode ? formatLabelLower(event.defectCode) : '—'}</Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+            </details>
+            <span className="text-[11px] text-text-muted">{attribution.method}</span>
           </div>
         </Panel>
       )}

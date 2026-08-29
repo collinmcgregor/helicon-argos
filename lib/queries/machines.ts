@@ -56,6 +56,7 @@ export interface QualityAttribution {
   inspectionEvents: number;
   failedEvents: number;
   supportingEventIds: string[];
+  rawEvidence: { eventId: string; timestamp: string; jobId: string; defectCode: string | null }[];
 }
 
 export type MachineAlertRule = AlertRule | 'recovered_incident';
@@ -325,11 +326,11 @@ export async function getQualityAttribution(
 ): Promise<QualityAttribution | null> {
   const [row] = await attributionSql(sql, machineId);
   if (!row) return null;
-  const evidence = await sql<{ event_id: string }[]>`
+  const evidence = await sql<{ event_id: string; timestamp: Date; job_id: string; defect_code: string | null }[]>`
     WITH job_machines AS (
       SELECT DISTINCT job_id FROM cycles WHERE machine_id = ${machineId}
     )
-    SELECT i.event_id FROM job_machines jm JOIN inspections i USING (job_id)
+    SELECT i.event_id, i.timestamp, i.job_id, i.defect_code FROM job_machines jm JOIN inspections i USING (job_id)
     WHERE NOT i.passed ORDER BY i.timestamp DESC LIMIT 5`;
   return {
     machine_id: row.machine_id,
@@ -339,6 +340,12 @@ export async function getQualityAttribution(
     inspectionEvents: row.inspection_events,
     failedEvents: row.failed_events,
     supportingEventIds: evidence.map((e) => e.event_id),
+    rawEvidence: evidence.map((e) => ({
+      eventId: e.event_id,
+      timestamp: e.timestamp.toISOString(),
+      jobId: e.job_id,
+      defectCode: e.defect_code,
+    })),
   };
 }
 

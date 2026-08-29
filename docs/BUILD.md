@@ -37,6 +37,32 @@ every task ships against).
    No `.skip`, no flaky tests merged — with a static dataset, any flake is a real bug.
 9. TDD-lite ordering: the failing assertion for a page's headline numbers (already known —
    `ARGOS.md §1`) is written before the page that renders them.
+10. **No generic components.** Every visual element is composed from the Wave 0 Laminate kit
+    (`components/*`); no raw shadcn defaults, no ad-hoc one-off styled divs that duplicate a
+    kit component, no component libraries beyond what Wave 0 wired. If a page needs a new
+    shared primitive, that's an escalation to the first mate, not a local copy.
+
+### Code standards (types, ontology fidelity, comments)
+
+- **The type system mirrors the ontology.** `lib/types.ts` (Wave 0-B, frozen) defines one
+  interface per ontology object — `Job`, `ProductionCycle`, `Inspection`, `Machine`, `Tool`,
+  `MaterialLot`, `Alert`, `OntologyObjectDef`… — plus string-literal unions for every enum:
+  `JobStatus = 'created' | 'in_progress' | 'blocked' | 'held' | 'completed'`, `EventType`,
+  `DefectCode`, `Severity`, `Provenance = 'observed' | 'derived' | 'external'`. Derived fields
+  live on the types as derived (e.g. `deliveryRisk`), matching `PLAN.md`'s
+  observed-vs-derived edge rules — the code enforces the same distinction the UI badges.
+- **Typed edges at the boundary.** Query modules are the only code that touches SQL rows;
+  each exported function returns the domain types, never raw rows or `any`. `strict: true`,
+  no `any`/`as any`, no `@ts-ignore`. IDs are branded-by-convention (`job_id: string` named
+  fields, never positional).
+- **No overwriting, by construction.** The ownership map above is the rule: frozen paths are
+  read-only after their wave; page tasks never edit another task's files; Write-over requires
+  first-mate escalation. Worktrees isolate checkouts; the map keeps merges append-only.
+- **Comments are sparse and load-bearing.** No narration, no doc-comment ceremony, no
+  "this function returns…" headers. A comment exists only to state a constraint the code
+  can't show — e.g. `// inspections carry qc_* station ids; attribute via job→cycle join`,
+  `// NOW frozen to last event — wall clock breaks overdue logic`. If a crewmate's diff is
+  >5% comment lines, it's over-commented.
 
 ### Environment / secrets
 
@@ -81,6 +107,13 @@ approved worktrees; four hours does not pay for the `no-mistakes` pipeline. Crew
 treehouse worktrees, so parallel work never collides in the checkout — the layout contract
 above is what keeps the *merges* trivial.
 
+**Git policy:** crewmates commit **locally, per green gate** in their worktree (small,
+imperative messages: `w1-jobs: explorer + detail, check green`) and never push or touch main.
+The first mate is the only agent that pushes: it pushes `main` to GitHub **after every task
+merge** (~8 pushes across the session — scaffold, each W0/W1 task, Wave 2 milestones). Commits
+carry their own timestamps, so the remote history reads as continuous incremental work with a
+clean linear main, and every wave boundary is backed up off-machine.
+
 **Total: 7 tasks in 3 waves (6 ship + 1 scout).** More crew than this and coordination costs
 exceed the parallelism gains in a 4-hour box.
 
@@ -112,10 +145,13 @@ and cross-cutting rules), the invariants above, its
 file-ownership row (code **and** test files), the relevant `ARGOS.md` insight moments to
 hard-wire, and the TDD-lite ordering: failing query test first, page second, smoke entry last.
 
-- **W1-overview** — `/`: 4 KPI tiles, facility-pulse strip (LA-01/LA-02 cards), needs-attention
-  queue with selected-investigation panel, systemic-quality note. Must surface: $590K/26
-  overdue, 9 blocked, press_03 + press_06 alerts, voids Pareto note. Tests:
-  `tests/queries/overview.test.ts` asserting those exact values.
+- **W1-overview** — `/`: 4 KPI tiles, factory panel (facility pulse + press machine strip),
+  trend row (throughput + pass rate), needs-attention queue with business-impact lines and
+  selected-investigation panel, derived recommended-actions list, systemic-quality note.
+  Build in the internal order `pages/overview.md` specifies — tiles/queue first; trend row and
+  action list are the cuttable tail. Must surface: $590K/26 overdue, 9 blocked, press_03 +
+  press_06 alerts, voids Pareto note. Tests: `tests/queries/overview.test.ts` asserting those
+  exact values, incl. computed business-impact sums.
 - **W1-jobs** — `/jobs` explorer (lean: status/facility/customer filters) + `/jobs/:jobId`
   evidence timeline (the non-negotiable page). Must make the `job_0152` → `lot_6626`
   traceability thread work — and its test proves the thread from the query layer.
@@ -123,9 +159,12 @@ hard-wire, and the TDD-lite ordering: failing query test first, page second, smo
   matters) + derived failure attribution with caveat badge; optional thin `/alerts` list.
   Tests assert press_03 median > 1,250s and that attribution never contains a QC station.
 - **W1-admin — Ontology Control (`/admin/ontology`)**: the admin route added in `DESIGN.md`.
-  It persists semantic configuration only, never source events. Build a compact object/field/
-  relationship master-detail editor with observed/derived/external provenance. Do not build a
-  graph canvas, arbitrary SQL editor, or dynamic ingestion builder.
+  It persists semantic configuration only, never source events. Two halves per
+  `pages/ontology-control.md`: the compact object/field/relationship master-detail editor with
+  observed/derived/external provenance, plus the **read-only ontology map** (fixed layered
+  layout, hand-positioned nodes + one SVG edge layer — no react-flow/d3, no drag) rendered
+  from the config tables so edits visibly change it. Editor first, map second. Do not build an
+  interactive graph editor, arbitrary SQL editor, or dynamic ingestion builder.
 
 ### Wave 2 — integration & delivery (captain + one scout)
 
@@ -167,6 +206,7 @@ checkpoints, not on new scope.
 ### Prompt skeleton for every ship task
 
 > Role, page/scope · owned paths (exclusive) · frozen paths (read-only) · the task's
-> `pages/<page>.md` spec pasted verbatim + `DESIGN.md` shell/cross-cutting rules ·
-> invariants 1–9 · the verified numbers this page must show · done-criteria incl.
-> `npm run check` green · "do not touch anything outside your owned paths."
+> `pages/<page>.md` spec pasted verbatim (layout diagram included) + `DESIGN.md`
+> shell/cross-cutting rules · invariants 1–10 + code standards · the verified numbers this
+> page must show · done-criteria incl. `npm run check` green · "do not touch anything outside
+> your owned paths."

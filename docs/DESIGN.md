@@ -5,6 +5,8 @@ and the cross-cutting rules every screen obeys. **Per-page specs live in `pages/
 document per route, each carrying its route, build task, query module, test file, and the
 verified numbers it must display. The visual system ("Laminate": tokens, type, components,
 blacklist) is specified in `ARGOS.md §5`; build sequencing and task ownership in `BUILD.md`.
+[`DATA-FLOWS.md`](DATA-FLOWS.md) owns the source-to-view contract, metric semantics, evidence,
+and route-to-route payloads.
 
 ## Product principle
 
@@ -21,6 +23,23 @@ Exception → explanation → implicated object → source-event evidence → af
 Do not add a visual unless it helps users make one of these decisions: where to investigate,
 what is affected, or whether evidence supports an action.
 
+## Work-trial goal coverage
+
+| What the product must prove | Design surface | Evidence / drill-through |
+| --- | --- | --- |
+| Detect drifting jobs and delivery risk | Overview overdue alert; Jobs Explorer | overdue filter → Job Detail timeline |
+| Let inspectors diagnose quality patterns | systemic-quality evidence strip; Job Detail inspections | defect/inspector/event evidence; never false asset attribution |
+| Let operators monitor both factories | Overview KPI row + LA-01/LA-02 facility pulse | facility → filtered Jobs Explorer |
+| Find throughput degradation and asset context | press_03/press_06 alerts; Machine Detail | cycle trend → sensor/maintenance/cycle event IDs → affected jobs |
+| Expose bottlenecks | missing-tool alert and filtered jobs | blocked reason → each blocked job/evidence timeline |
+| Tie operations to commercial impact | overdue and alert impact lines | customer/job list; price-coverage caveat |
+| Preserve source truth and model relationships | Job/Machine Detail, Ontology Control | raw event IDs; observed/derived/external labels |
+| Evolve the operating model | Ontology Control | versioned configuration, source mapping, change history |
+| Close the loop on a finding | Investigation page (P1) | immutable evidence snapshot plus owner/note |
+
+The only goal intentionally outside P0 is persistent investigation workflow state. Its page and
+data contract are designed, but it must not delay the deployed alert → evidence MVP.
+
 ## Information architecture
 
 Ship five navigable views plus a login gate.
@@ -32,6 +51,7 @@ Password gate
        ├─ Jobs explorer (/jobs)
        │    └─ Job detail (/jobs/:jobId)
        ├─ Machine detail (/machines/:machineId)
+       ├─ Investigation (/investigations/:investigationId) [P1 action layer]
        └─ Ontology Control (/admin/ontology) [administrator only]
 ```
 
@@ -41,21 +61,29 @@ Password gate
 | `/jobs` | [`pages/jobs-explorer.md`](pages/jobs-explorer.md) | W1-jobs |
 | `/jobs/:jobId` | [`pages/job-detail.md`](pages/job-detail.md) | W1-jobs |
 | `/machines/:machineId` | [`pages/machine-detail.md`](pages/machine-detail.md) | W1-machines |
+| `/investigations/:investigationId` (P1) | [`pages/investigation.md`](pages/investigation.md) | P1 |
 | `/alerts` (optional) | [`pages/alerts.md`](pages/alerts.md) | W1-machines |
 | `/admin/ontology` | [`pages/ontology-control.md`](pages/ontology-control.md) | W1-admin |
 
-There is deliberately no standalone ontology graph, facility page, customer page,
-quality-rankings page, tool page, or material-lot page in v0.0. Those concepts appear as linked
-context in job and machine views. Ontology Control changes semantic configuration, never raw
-source events.
+There is deliberately no standalone facility page, customer page, quality-rankings page, tool
+page, or material-lot page in v0.0. Those concepts appear as linked context in job and machine
+views. The ontology's connected structure is visualized by the **read-only ontology map**
+inside Ontology Control (`pages/ontology-control.md`) — there is no separate graph-explorer
+route and no interactive graph editor. Ontology Control changes semantic configuration, never
+raw source events.
 
 ### Global shell
 
 - Fixed left rail: `Overview`, `Jobs`, `Alerts`, `Machines`; an `ADMIN` section contains
   `Ontology Control`.
-- Top bar: breadcrumb and facility selector (`All facilities`, `LA-01`, `LA-02`).
+- Top bar, left → right: breadcrumb · facility selector (`All facilities`, `LA-01`, `LA-02`) ·
+  **user chip** — mono initials in a flat 1px-bordered square, an `ADMIN` tag in resin amber,
+  and a menu with exactly one item: sign out. No avatar image, no settings, no notifications
+  bell, no fake account features.
 - `HELICON / ARGOS v0.0` wordmark with a restrained resin-amber mark.
-- Show an `ADMIN` indicator in the top bar for the demo account.
+- Stretch (shell task, only if on schedule): a `⌘K` jump-to-object palette over the known ID
+  space (jobs, machines, tools, customers) — client-side static list, opens the object's
+  route. No fuzzy search service, no recent-history persistence.
 - Dark "Laminate" design system from `ARGOS.md §5`: flat panels, 1px borders, no shadows, no
   rounded/pill-heavy consumer-app styling.
 - Inter for written labels; IBM Plex Mono for IDs, dates, quantities, and all KPI values.
@@ -91,6 +119,9 @@ Every designed screen needs these states before build:
    echoes the originating filter/rule.
 6. **Sparse-data honesty:** show coverage for material lots (14 scans), unit-price estimates,
    and missing machine IDs rather than displaying misleading zeroes.
+7. **Action boundary:** raw events are read-only. Any user action creates a separate
+   investigation/annotation record that stores links to the selected evidence, never rewrites
+   production history.
 
 ## Build order
 

@@ -117,8 +117,8 @@ Requirements:
 Build one landing page with:
 
 - job state counts: active, blocked/held, completed, at-risk
-- throughput over time: completed cycle quantity
-- quality trend: inspection-pass and failure rate
+- a compact LA-01 / LA-02 recent-activity comparison
+- a systemic-quality evidence note, not an asset-quality ranking
 - a ranked, clickable “Needs attention” list
 
 Keep the page operational. Every chart/card should lead to a filtered list or investigation.
@@ -129,7 +129,8 @@ Build a sortable/filterable job table. Show:
 
 - job, customer, part, facility, material
 - status, priority, target due date, target quantity
-- completed quantity, good quantity, scrap quantity, yield
+- authoritative completion outcome (good/scrap quantity and yield when a completion exists)
+- production activity (cycle count and cumulative cycle quantity), kept separate from completion
 - linked machine/tool history
 - risk/reason
 
@@ -148,26 +149,30 @@ Selecting a job should show:
 
 #### 5. Asset-quality investigation
 
-Build a machine/tool ranking view that exposes:
+Build a machine-performance investigation that exposes:
 
-- cycle-time median or average
-- inspection failure rate
-- cycle count / production quantity
-- linked jobs and latest relevant events
+- cycle-time median, fleet comparison, and time trend
+- cycle count / production activity
+- machine sensor and maintenance evidence
+- affected jobs and latest relevant events
 
 The investigation must be able to start from an alert and reach its evidence and affected jobs.
+Do not rank assets by inspection failure rate: inspection events occur at QC stations and the
+observed failure rate is flat across the candidate production dimensions.
 
 #### 6. Explainable alert candidates
 
-Implement transparent rules—not ML:
+Implement three transparent alert rules—not ML:
 
 - **Blocked / held job:** latest lifecycle state is blocked or held.
 - **Due-date risk:** target date has passed while the job is not completed; optionally flag near-due, incomplete jobs.
-- **Quality signal:** a machine/tool has a materially worse failure rate than the global or facility baseline, subject to a sensible sample-size minimum.
 - **Cycle-time signal:** a machine/tool’s recent cycle time exceeds its historical baseline, subject to a minimum sample size.
-- **Asset signal:** maintenance ping or sensor glitch, linked to the associated job and machine when present.
 
 Each alert must include: rule name, severity/priority, a human-readable explanation, implicated object IDs, and supporting event IDs.
+
+Inspection failure composition, maintenance pings, and sensor glitches are evidence that enriches
+an investigation; they are not generic alerts in v0.0. The known `press_06` event chain is an
+exception because it supports a specific cycle-time investigation.
 
 #### 7. Admin ontology control
 
@@ -187,6 +192,8 @@ Persist definitions in Supabase configuration tables and show them immediately i
 - Shift handoff summary using the 17 handoff events plus open risks.
 - CSV export and URL-persisted filters.
 - Basic acknowledgement / owner / note state for issues.
+- A lightweight investigation action that records a selected alert/evidence set, owner, and note
+  without mutating raw events.
 
 ### P2: backlog
 

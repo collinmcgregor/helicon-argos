@@ -87,7 +87,7 @@ and all risk states are **derived** and badged as such in the UI.
 | 4 | Explainable alerts — **3 rules only**: overdue-incomplete, blocked/held, cycle-time-vs-baseline | 25 min | Build. Cut the per-asset quality rule (fires nothing — verified) and the generic asset-event rule |
 | 5 | Job explorer (plain table; filters: status, facility, customer only) | 25 min | Build lean. No TanStack Table |
 | 6 | Machine detail: cycle-time trend chart + derived failure attribution w/ caveat badge | 30 min | Build if on schedule at min 140 |
-| 7 | Overview trend charts | 20 min | Nice-to-have; fail-rate trend is flat anyway |
+| 7 | Overview trend row (throughput + pass rate) + machine strip + derived action list | 25 min | Folded into W1-overview scope (`pages/overview.md`); its cuttable tail if that task runs long. The pass-rate chart's flatness *is* the systemic-quality evidence |
 | 8 | Password gate + deploy + README | 35 min | Reserved; never cut |
 | 9 | Ontology Control (`/admin/ontology`) — added after v1 of this doc | 40 min | Crew-plan scope only (`BUILD.md` W1-admin); viable because parallelism funds it. **First cut under schedule pressure.** Spec: `pages/ontology-control.md` |
 
@@ -139,7 +139,9 @@ min 235–240  README + final commit
 3. **$590K behind 26 overdue jobs** — the money tile; works only because NOW is frozen.
 4. **Work is stuck on missing tools** — 28 of 68 blocks; nine jobs currently stranded.
 5. **The traceability thread** — blocked alert → `job_0152` timeline → `lot_6626` scan →
-   other jobs sharing the lot, with an honest sparse-data caption.
+   observed Job → Lot → Material → Customer lineage, with the honest sparse-data caption:
+   each of the 14 observed lots currently maps to one job, so this is lineage rather than a
+   blast-radius claim.
 
 **Do not** leave "find the bad tool live on stage" in the script — the discriminating signal
 isn't there (verified). Script these five; they're all true.

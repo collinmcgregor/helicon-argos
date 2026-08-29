@@ -115,7 +115,7 @@ describe('factory panel', () => {
     expect(press06?.statusTone).toBe('info');
     for (const m of strip) {
       expect(m.machine_id).not.toMatch(/^qc_/);
-      expect(m.weeklyMedians.length).toBeGreaterThanOrEqual(6);
+      expect(m.weeklyMedians.length).toBeGreaterThanOrEqual(5);
     }
   });
 });

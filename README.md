@@ -1,6 +1,6 @@
-# Dragonfly
+# Helicon Argos (v0.0)
 
-**Dragonfly** is an operations digital twin for discrete manufacturing. It turns a raw, append-only event log into a connected representation of factory work, assets, quality, and delivery risk—so an operations team can move from a signal to evidence to action.
+**Helicon Argos** is an operations digital twin for discrete manufacturing. It turns a raw, append-only event log into a connected representation of factory work, assets, quality, and delivery risk—so an operations team can move from a signal to evidence to action.
 
 The starting data is `manufacturing_events.jsonl`, a synthetic manufacturing-event log with 19,519 events. It records job lifecycle changes, production cycles, inspection outcomes, tooling, machine signals, materials, facilities, and quantities.
 

@@ -20,6 +20,20 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - Docs are authoritative for semantics: `docs/DATA-FLOWS.md` (definitions), `docs/ARGOS.md` §1
   (verified numbers), `docs/TESTING.md` (test layers and expected values).
 
+## App shell & kit (W0-B)
+
+- All UI composes the frozen Laminate kit in `components/*` (spec: `docs/ARGOS.md` §5);
+  tokens live in `app/globals.css` `@theme` as `--color-*` Tailwind utilities
+  (`bg-bg-2`, `text-text-muted`, `border-border`, `bg-status-warn-dim`, `font-mono`…).
+  `/kitchen-sink` renders every component with static props (deleted in Wave 2).
+- Frozen NOW for TypeScript: `NOW`/`NOW_ISO` in `lib/constants.ts` (SQL twin: `frozen_now()`).
+- `lib/db.ts` is `server-only`; tests can't import it — use the client re-exported from
+  `tests/helpers.ts`, which loads `.env.local` via dotenv (`@next/env` skips `.env.local`
+  under vitest's `NODE_ENV=test`).
+- The shell (NavRail/TopBar) keeps `?facility=` in the URL and forwards it on nav links;
+  page queries must honor it. `tests/smoke/routes.test.ts` is append-only per task —
+  add your section under your marked heading, never edit others'.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

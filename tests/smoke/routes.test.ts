@@ -71,6 +71,32 @@ describe('w1-overview route /', () => {
 // ---------------------------------------------------------------------------
 // W1-admin · routes: /admin/ontology            (append here)
 // ---------------------------------------------------------------------------
+describe('w1-admin /admin/ontology', () => {
+  it('map has a definition for every hand-placed layout node', async () => {
+    const placed = [
+      'raw_event', 'customer', 'material_lot', 'facility', 'job', 'part',
+      'production_cycle', 'inspection', 'tool', 'machine', 'inspector', 'operational_issue',
+    ];
+    const rows = await sql<{ key: string }[]>`
+      SELECT DISTINCT ON (key) key FROM ontology_object_defs
+      WHERE status = 'active' ORDER BY key, version DESC`;
+    const keys = new Set(rows.map((r) => r.key));
+    for (const k of placed) expect(keys, `missing seeded object ${k}`).toContain(k);
+  });
+
+  it('map node record counts resolve for the seeded source mappings', async () => {
+    const [c] = await sql<{ events: string; jobs: string; cycles: string; inspections: string }[]>`
+      SELECT (SELECT count(*) FROM events) AS events,
+             (SELECT count(*) FROM jobs_current) AS jobs,
+             (SELECT count(*) FROM cycles) AS cycles,
+             (SELECT count(*) FROM inspections) AS inspections`;
+    expect(Number(c.events)).toBe(19_519);
+    expect(Number(c.jobs)).toBe(312);
+    expect(Number(c.cycles)).toBe(12_965);
+    expect(Number(c.inspections)).toBe(5_153);
+  });
+});
+
 
 // ---------------------------------------------------------------------------
 // Wave 2 · captain: deployed-URL smoke (SMOKE_BASE_URL)            (append here)

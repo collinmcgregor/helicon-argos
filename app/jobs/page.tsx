@@ -156,7 +156,7 @@ export default async function JobsPage({
                   : null;
                 return (
                   <Tr key={job.job_id} className="align-top">
-                    <Td className="py-2">
+                    <Td className="whitespace-nowrap py-2">
                       <StatusBadge tone={STATUS_TONE[job.status]} label={job.status.replace('_', ' ')} />
                     </Td>
                     <Td className="py-2">
@@ -182,7 +182,7 @@ export default async function JobsPage({
                     <Td mono className="py-2 text-text-secondary">
                       {job.customer_id} · {job.part_id}
                     </Td>
-                    <Td mono className="py-2">
+                    <Td mono className="whitespace-nowrap py-2">
                       <span className={job.deliveryRisk === 'overdue' ? 'text-status-critical' : 'text-text-secondary'}>
                         {job.due_date}
                       </span>

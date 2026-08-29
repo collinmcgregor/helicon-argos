@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { sql, NOW_ISO } from '../helpers';
 
 // Layer 3 smoke suite (TESTING.md). Append-only: each task adds its own marked
@@ -63,6 +63,76 @@ describe('w1-overview route /', () => {
 // ---------------------------------------------------------------------------
 // W1-jobs · routes: /jobs, /jobs/:jobId            (append here)
 // ---------------------------------------------------------------------------
+describe('w1-jobs routes', () => {
+  // Without SMOKE_BASE_URL there is no server during `npm test` (next build
+  // runs after vitest in `npm run check`), so this section boots its own
+  // next dev on a task-unique port and tears it down.
+  const jobsBase = process.env.SMOKE_BASE_URL ?? 'http://localhost:3452';
+  let jobsServer: ReturnType<typeof import('node:child_process').spawn> | undefined;
+
+  beforeAll(async () => {
+    if (process.env.SMOKE_BASE_URL) return;
+    const { spawn } = await import('node:child_process');
+    jobsServer = spawn('npx', ['next', 'dev', '-p', '3452'], {
+      stdio: 'ignore',
+      detached: true,
+    });
+    const deadline = Date.now() + 110_000;
+    for (;;) {
+      try {
+        const res = await fetch(`${jobsBase}/jobs`);
+        if (res.status === 200) return;
+      } catch {
+        /* not up yet */
+      }
+      if (Date.now() > deadline) throw new Error('next dev did not become ready');
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }, 120_000);
+
+  afterAll(() => {
+    if (jobsServer?.pid) process.kill(-jobsServer.pid, 'SIGTERM');
+  });
+
+  it('GET /jobs renders the explorer', async () => {
+    const res = await fetch(`${jobsBase}/jobs`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Jobs');
+    expect(html).toContain('jobs_current');
+    expect(html).toContain('job_0152');
+  }, 30_000);
+
+  it('GET /jobs?risk=overdue echoes the filter with honest money coverage', async () => {
+    const res = await fetch(`${jobsBase}/jobs?risk=overdue`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Overdue incomplete jobs');
+    expect(html).toContain('$590,465');
+    expect(html).toContain('unit-price coverage');
+    expect(html).toContain('Clear filters');
+  }, 30_000);
+
+  it('GET /jobs/job_0152 shows the blocked + lot-scanned evidence timeline', async () => {
+    const res = await fetch(`${jobsBase}/jobs/job_0152`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('job_0152');
+    expect(html).toContain('engineering_hold');
+    expect(html).toContain('lot_6626');
+    expect(html).toContain('evt_011481'); // lot-scan source event
+    expect(html).toContain('evt_011504'); // open block source event
+    expect(html).toContain('Lot-scanned data available for');
+  }, 30_000);
+
+  it('GET /jobs/job_0293 surfaces the duplicate completion without hiding raw events', async () => {
+    const res = await fetch(`${jobsBase}/jobs/job_0293`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('job_completed in source');
+    expect(html.split('evt_001862').length - 1).toBeGreaterThanOrEqual(2);
+  }, 30_000);
+});
 
 // ---------------------------------------------------------------------------
 // W1-machines · routes: /machines/:machineId, /alerts            (append here)

@@ -31,6 +31,11 @@ import {
   type TrendWindow,
 } from '@/lib/queries/machines';
 import { CycleTrendChart } from './CycleTrendChart';
+import { unstable_cache } from 'next/cache';
+
+// frozen dataset: permanent per-query cache; warm pages skip the db wire
+const cached = <T,>(key: string, f: () => Promise<T>) =>
+  unstable_cache(f, [key], { revalidate: false })();
 import { eventLabel, facilityLabel, jobLabel, machineLabel } from '@/lib/present';
 
 const nf = new Intl.NumberFormat('en-US');
@@ -66,7 +71,7 @@ export default async function MachineDetailPage({
     sp.facility === 'la_01' || sp.facility === 'la_02' ? sp.facility : undefined;
   const facilityQs = facility ? `&facility=${facility}` : '';
 
-  const machine = await getMachine(sql, machineId);
+  const machine = await cached(`m-head-${machineId}`, () => getMachine(sql, machineId));
   if (!machine) {
     return (
       <div className="flex max-w-6xl flex-col gap-3">
@@ -87,12 +92,12 @@ export default async function MachineDetailPage({
   }
 
   const [trend, incident, attribution, fleetAttribution, jobs, evidence] = await Promise.all([
-    getWeeklyCycleTrend(sql, machineId, window),
-    getRecoveredIncident(sql, machineId),
-    getQualityAttribution(sql, machineId),
-    getFleetAttribution(sql),
-    getAffectedJobs(sql, machineId, facility),
-    getEvidenceLog(sql, machineId),
+    cached(`m-trend-${machineId}-${window}`, () => getWeeklyCycleTrend(sql, machineId, window)),
+    cached(`m-incident-${machineId}`, () => getRecoveredIncident(sql, machineId)),
+    cached(`m-attr-${machineId}`, () => getQualityAttribution(sql, machineId)),
+    cached('m-fleet-attr', () => getFleetAttribution(sql)),
+    cached(`m-jobs-${machineId}-${facility ?? 'all'}`, () => getAffectedJobs(sql, machineId, facility)),
+    cached(`m-evidence-${machineId}`, () => getEvidenceLog(sql, machineId)),
   ]);
 
   const headline = [

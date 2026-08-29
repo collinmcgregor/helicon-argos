@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import type { Metadata } from 'next';
 import { PageTitle } from '@/components/PageTitle';
 import { EVENT_HORIZON_DISPLAY } from '@/lib/display';
@@ -42,7 +43,8 @@ export default async function OntologyControlPage({
     listObjectDefs(),
     listRelationshipDefs(),
     listFieldDefs(),
-    recordCounts(),
+    // record counts scan the big materialized views; frozen data = cache forever
+    unstable_cache(recordCounts, ['ont-counts'], { revalidate: false })(),
   ]);
 
   const [objectHist, relHist, fieldHist] = await Promise.all([

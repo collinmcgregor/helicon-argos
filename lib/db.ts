@@ -17,12 +17,7 @@ export const sql =
   postgres(databaseUrl, {
     ssl: 'require',
     prepare: false, // transaction-mode pooler compatibility
-    max: 1, // serialize per instance: pooler auth chokes on parallel connect storms; materialized tables make serial queries cheap
-    // serverless hygiene: fail fast on a wedged connect instead of hanging the
-    // render, and never reuse a connection that outlived a frozen lambda
-    connect_timeout: 5,
-    idle_timeout: 20,
-    max_lifetime: 300,
+    max: 5,
   });
 
 globalForDb.__argosSql = sql;

@@ -34,6 +34,12 @@ import {
   getProvenanceStats,
 } from '@/lib/queries/overview';
 import { PassRateLine, Sparkline, ThroughputArea } from './overview-charts';
+import { unstable_cache } from 'next/cache';
+
+// frozen dataset: cache every query result permanently after first success so
+// warm pages never depend on the flaky function->db network path
+const cached = <T,>(key: string, f: () => Promise<T>) =>
+  unstable_cache(f, [key], { revalidate: false })();
 
 export const dynamic = 'force-dynamic';
 
@@ -56,14 +62,15 @@ export default async function OverviewPage({
     params.facility === 'la_01' || params.facility === 'la_02' ? params.facility : undefined;
   const facQs = facility ? `&facility=${facility}` : '';
 
+  const fk = facility ?? 'all';
   const [kpis, queue, pulse, strip, trends, pareto, provenance] = await Promise.all([
-    getOverviewKpis(sql, facility),
-    getNeedsAttention(sql, facility),
-    getFacilityPulse(sql),
-    getMachineStrip(sql, facility),
-    getOverviewTrends(sql, facility),
-    getDefectPareto(sql),
-    getProvenanceStats(sql),
+    cached(`ovw-kpis-${fk}`, () => getOverviewKpis(sql, facility)),
+    cached(`ovw-queue-${fk}`, () => getNeedsAttention(sql, facility)),
+    cached('ovw-pulse', () => getFacilityPulse(sql)),
+    cached(`ovw-strip-${fk}`, () => getMachineStrip(sql, facility)),
+    cached(`ovw-trends-${fk}`, () => getOverviewTrends(sql, facility)),
+    cached('ovw-pareto', () => getDefectPareto(sql)),
+    cached('ovw-prov', () => getProvenanceStats(sql)),
   ]);
   const actions = deriveRecommendedActions(queue, pareto);
   const selected = queue.find((a) => a.alert_id === params.alert) ?? queue[0];

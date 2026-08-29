@@ -94,44 +94,51 @@ describe('w1-jobs routes', () => {
     if (jobsServer?.pid) process.kill(-jobsServer.pid, 'SIGTERM');
   });
 
+  // Transient pooler auth timeouts (EAUTHTIMEOUT) can stream an error fallback
+  // instead of data; retry until the marker renders — with a static dataset a
+  // persistent absence is a real failure, not a flake.
+  async function fetchPage(path: string, marker: string): Promise<string> {
+    const deadline = Date.now() + 30_000;
+    for (;;) {
+      try {
+        const res = await fetch(`${jobsBase}${path}`);
+        if (res.status === 200) {
+          const html = await res.text();
+          if (html.includes(marker)) return html;
+        }
+      } catch {
+        /* transient */
+      }
+      if (Date.now() > deadline) throw new Error(`${path} did not render "${marker}" in 30s`);
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
   it('GET /jobs renders the explorer', async () => {
-    const res = await fetch(`${jobsBase}/jobs`);
-    expect(res.status).toBe(200);
-    const html = await res.text();
+    const html = await fetchPage('/jobs', 'job_0152');
     expect(html).toContain('Jobs');
     expect(html).toContain('jobs_current');
-    expect(html).toContain('job_0152');
-  }, 30_000);
+  }, 40_000);
 
   it('GET /jobs?risk=overdue echoes the filter with honest money coverage', async () => {
-    const res = await fetch(`${jobsBase}/jobs?risk=overdue`);
-    expect(res.status).toBe(200);
-    const html = await res.text();
+    const html = await fetchPage('/jobs?risk=overdue', '$590,465');
     expect(html).toContain('Overdue incomplete jobs');
-    expect(html).toContain('$590,465');
     expect(html).toContain('unit-price coverage');
     expect(html).toContain('Clear filters');
-  }, 30_000);
+  }, 40_000);
 
   it('GET /jobs/job_0152 shows the blocked + lot-scanned evidence timeline', async () => {
-    const res = await fetch(`${jobsBase}/jobs/job_0152`);
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain('job_0152');
+    const html = await fetchPage('/jobs/job_0152', 'lot_6626');
     expect(html).toContain('engineering_hold');
-    expect(html).toContain('lot_6626');
     expect(html).toContain('evt_011481'); // lot-scan source event
     expect(html).toContain('evt_011504'); // open block source event
     expect(html).toContain('Lot-scanned data available for');
-  }, 30_000);
+  }, 40_000);
 
   it('GET /jobs/job_0293 surfaces the duplicate completion without hiding raw events', async () => {
-    const res = await fetch(`${jobsBase}/jobs/job_0293`);
-    expect(res.status).toBe(200);
-    const html = await res.text();
-    expect(html).toContain('job_completed in source');
+    const html = await fetchPage('/jobs/job_0293', 'job_completed in source');
     expect(html.split('evt_001862').length - 1).toBeGreaterThanOrEqual(2);
-  }, 30_000);
+  }, 40_000);
 });
 
 // ---------------------------------------------------------------------------

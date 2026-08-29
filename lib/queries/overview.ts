@@ -1,4 +1,5 @@
 import type { Sql } from 'postgres';
+import { NOW_ISO } from '@/lib/constants';
 import { formatDateShort, formatMinutes } from '@/lib/display';
 import type {
   AlertRule,
@@ -393,7 +394,7 @@ export async function getFacilityPulse(sql: Sql): Promise<FacilityPulse[]> {
     recent24hQuantity: r.recent_qty,
     topOverdueJobId: r.top_job,
     topOverdueValue: r.top_value,
-    latestEventAt: r.latest_at.toISOString(),
+    latestEventAt: r.latest_at?.toISOString() ?? NOW_ISO,
     latestEventId: r.latest_id,
   }));
 }
@@ -499,7 +500,7 @@ export async function getProvenanceStats(sql: Sql): Promise<ProvenanceStats> {
     la01SharePct: row.la01_pct,
     la02SharePct: row.la02_pct,
     latestEventId: row.latest_id,
-    latestEventAt: row.latest_at.toISOString(),
+    latestEventAt: row.latest_at?.toISOString() ?? NOW_ISO,
   };
 }
 

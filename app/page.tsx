@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { AlertRow } from '@/components/AlertRow';
-import { AngleGlyph } from '@/components/AngleGlyph';
 import { DerivedBadge } from '@/components/DerivedBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { KpiTile } from '@/components/KpiTile';
-import { MiniPareto } from '@/components/MiniPareto';
 import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { SectionLabel } from '@/components/SectionLabel';
@@ -14,27 +12,16 @@ import { EVENT_HORIZON_LABEL } from '@/lib/constants';
 import { sql } from '@/lib/db';
 import type { FacilityId } from '@/lib/types';
 import {
-  deriveRecommendedActions,
-  getDefectPareto,
   getFacilityPulse,
-  getMachineStrip,
   getNeedsAttention,
   getOverviewKpis,
-  getOverviewTrends,
   getProvenanceStats,
 } from '@/lib/queries/overview';
-import { PassRateLine, Sparkline, ThroughputArea } from './overview-charts';
+import { facilityLabel, identifierLabel, jobLabel } from '@/lib/present';
 
 export const dynamic = 'force-dynamic';
 
 const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
-
-const TONE_COLOR: Record<string, string> = {
-  ok: 'var(--color-text-muted)',
-  warn: 'var(--color-status-warn)',
-  critical: 'var(--color-status-critical)',
-  info: 'var(--color-status-info)',
-};
 
 export default async function OverviewPage({
   searchParams,
@@ -46,16 +33,12 @@ export default async function OverviewPage({
     params.facility === 'la_01' || params.facility === 'la_02' ? params.facility : undefined;
   const facQs = facility ? `&facility=${facility}` : '';
 
-  const [kpis, queue, pulse, strip, trends, pareto, provenance] = await Promise.all([
+  const [kpis, queue, pulse, provenance] = await Promise.all([
     getOverviewKpis(sql, facility),
     getNeedsAttention(sql, facility),
     getFacilityPulse(sql),
-    getMachineStrip(sql, facility),
-    getOverviewTrends(sql, facility),
-    getDefectPareto(sql),
     getProvenanceStats(sql),
   ]);
-  const actions = deriveRecommendedActions(queue, pareto);
   const selected = queue.find((a) => a.alert_id === params.alert) ?? queue[0];
   const pulseShown = facility ? pulse.filter((p) => p.facility_id === facility) : pulse;
 
@@ -71,7 +54,7 @@ export default async function OverviewPage({
         Operations overview
       </PageTitle>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <KpiTile
           label="Active jobs"
           value={String(kpis.activeJobs)}
@@ -93,33 +76,10 @@ export default async function OverviewPage({
           tone="critical"
           href={`/jobs?risk=overdue${facQs}`}
         />
-        <KpiTile
-          label="In-process fail rate"
-          value={`${Math.round(kpis.inProcessFailRatePct)}%`}
-          delta={`final completed-job yield: ${fmt(kpis.completedYieldPct)}%`}
-          tone="info"
-          href="/alerts"
-        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Panel label="Throughput" count="daily good qty">
-          <Link href={`/jobs?status=active${facQs}` as Route} className="block">
-            <ThroughputArea points={trends.throughput} />
-          </Link>
-        </Panel>
-        <Panel label="Quality" count="daily pass rate">
-          <Link href={'/alerts' as Route} className="block">
-            <PassRateLine points={trends.passRate} referencePct={Math.round(trends.overallPassRatePct)} />
-          </Link>
-          <div className="pt-1 text-[11px] text-text-muted">
-            flat across assets — see quality note below
-          </div>
-        </Panel>
-      </div>
-
-      <Panel label="Factory" count={facility ? facility : 'la_01 · la_02'}>
-        <div className="flex flex-col gap-3">
+      <Panel label="Factory pulse" count={facility ? facilityLabel(facility) : '2 facilities'}>
+        <div className="flex flex-col gap-2">
           <div className={`grid gap-3 ${pulseShown.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {pulseShown.map((p) => (
               <Link
@@ -129,44 +89,24 @@ export default async function OverviewPage({
               >
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-[13px] font-medium text-text-primary">
-                    {p.facility_id.replace('la_', 'LA-')}
+                    {facilityLabel(p.facility_id)}
                   </span>
                   <span className="font-mono text-[11px] text-text-muted">
-                    latest {p.latestEventAt.slice(0, 16).replace('T', ' ')} · {p.latestEventId}
+                    latest {p.latestEventAt.slice(0, 16).replace('T', ' ')}
                   </span>
                 </div>
-                <div className="mt-1 grid grid-cols-4 gap-2 font-mono text-[12.5px] text-text-secondary">
+                <div className="mt-1 grid grid-cols-3 gap-2 font-mono text-[12.5px] text-text-secondary">
                   <span>{p.openJobs} open</span>
                   <span>{p.blockedHeldJobs} blocked/held</span>
                   <span>{p.overdueJobs} overdue</span>
-                  <span>qty {fmt(p.recent24hQuantity)} recent</span>
+                  <span>{fmt(p.recent24hQuantity)} recent qty</span>
                 </div>
                 {p.topOverdueJobId && (
                   <div className="mt-1 font-mono text-[11px] text-text-muted">
-                    top overdue {p.topOverdueJobId}
+                    top overdue job {jobLabel(p.topOverdueJobId)}
                     {p.topOverdueValue != null && ` · $${fmt(p.topOverdueValue)}`}
                   </div>
                 )}
-              </Link>
-            ))}
-          </div>
-          <div className="grid grid-cols-6 gap-2">
-            {strip.map((m) => (
-              <Link
-                key={m.machine_id}
-                href={`/machines/${m.machine_id}` as Route}
-                className="rounded-sm border border-border-faint px-2 py-1.5 transition-colors duration-100 hover:bg-bg-3"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[12.5px] text-text-primary">{m.machine_id}</span>
-                  <AngleGlyph tone={m.statusTone} />
-                </div>
-                <div className="mt-0.5 font-mono text-[11px] text-text-secondary">
-                  {fmt(m.medianCycleSeconds)}s med
-                </div>
-                <div className="mt-1">
-                  <Sparkline values={m.weeklyMedians} stroke={TONE_COLOR[m.statusTone]} />
-                </div>
               </Link>
             ))}
           </div>
@@ -195,7 +135,7 @@ export default async function OverviewPage({
               />
             </div>
           ) : (
-            queue.map((a) => (
+            queue.slice(0, 3).map((a) => (
               <AlertRow
                 key={a.alert_id}
                 severity={a.severity}
@@ -241,7 +181,7 @@ export default async function OverviewPage({
                     key={id}
                     className="rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[12.5px] text-text-secondary"
                   >
-                    {id}
+                    {identifierLabel(id)}
                   </span>
                 ))}
                 {selected.supporting_event_ids.length > 8 && (
@@ -263,36 +203,17 @@ export default async function OverviewPage({
         </Panel>
       </div>
 
-      <Panel
-        label="Recommended actions"
-        headerRight={<DerivedBadge provenance="derived" caveat="generated from open alerts" />}
-        padded={false}
-      >
-        {actions.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href as Route}
-            className="flex items-center border-b border-border-faint px-4 py-2 text-[13px] text-text-secondary transition-colors duration-100 last:border-b-0 hover:bg-bg-3 hover:text-text-primary"
-          >
-            {action.text}
-          </Link>
-        ))}
-      </Panel>
-
-      <Panel label="Quality signal">
-        <p className="pb-2 text-[13px] text-text-secondary">
+      <Panel label="Systemic quality signal">
+        <p className="text-[13px] text-text-secondary">
           Voids are the top defect in all eight materials. Inspection failure rates are flat across
           presses, tools, facilities, and inspectors. Investigate a shared process step — not a
           single asset.
         </p>
-        <MiniPareto
-          items={pareto.map((d) => ({ label: d.defect_code, count: d.failedInspections }))}
-        />
       </Panel>
 
       <div className="pb-2 font-mono text-[11px] text-text-muted">
-        {fmt(provenance.totalEvents)} events · horizon {EVENT_HORIZON_LABEL} · la_01{' '}
-        {provenance.la01SharePct}% / la_02 {provenance.la02SharePct}% of activity · source:
+        {fmt(provenance.totalEvents)} events · horizon {EVENT_HORIZON_LABEL} · LA 01{' '}
+        {provenance.la01SharePct}% / LA 02 {provenance.la02SharePct}% of activity · source:
         manufacturing_events.jsonl
       </div>
     </div>

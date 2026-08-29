@@ -7,6 +7,7 @@ import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
 import { listMachines } from '@/lib/queries/machines';
+import { machineLabel } from '@/lib/present';
 
 const nf = new Intl.NumberFormat('en-US');
 
@@ -48,7 +49,7 @@ export default async function MachinesPage({
                     href={`/machines/${m.machine_id}${facilityQs}` as Route}
                     className="text-accent hover:underline"
                   >
-                    {m.machine_id}
+                    {machineLabel(m.machine_id)}
                   </Link>
                 </Td>
                 <Td>
@@ -82,7 +83,7 @@ export default async function MachinesPage({
         </Table>
       </Panel>
       <span className="text-[11px] text-text-muted">
-        Timing from completed production cycles. QC stations qc_01/qc_02 are not production
+        Timing from completed production cycles. QC stations QC 01/QC 02 are not production
         machines; their inspections attribute to presses only via the derived Job → Cycle
         association.
       </span>

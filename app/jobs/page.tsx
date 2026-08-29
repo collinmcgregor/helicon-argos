@@ -15,6 +15,7 @@ import {
 } from '@/lib/queries/jobs';
 import { JobsFilterBar } from './filters';
 import { money, STATUS_TONE } from './format';
+import { customerLabel, facilityLabel, jobLabel, materialLabel, partLabel, reasonLabel } from '@/lib/present';
 
 const EXPLORER_STATUSES = new Set<ExplorerStatus>([
   'created',
@@ -41,7 +42,7 @@ function parseFilter(params: Record<string, string | string[] | undefined>): Job
 
 function pageTitle(filter: JobsFilter): string {
   if (filter.risk === 'overdue') return 'Overdue incomplete jobs';
-  if (filter.reason) return `Jobs blocked: ${filter.reason}`;
+  if (filter.reason) return `Jobs blocked: ${reasonLabel(filter.reason)}`;
   switch (filter.status) {
     case 'blocked-held':
       return 'Blocked / held jobs';
@@ -123,7 +124,7 @@ export default async function JobsPage({
 
       <JobsFilterBar customers={customers} />
 
-      <Panel padded={false} label="jobs_current" count={jobs.length}>
+      <Panel padded={false} label="Jobs" count={jobs.length}>
         {jobs.length === 0 ? (
           <div className="flex flex-col items-center">
             <EmptyState
@@ -164,10 +165,10 @@ export default async function JobsPage({
                         href={`/jobs/${job.job_id}${forward}` as Route}
                         className="font-mono text-[12.5px] text-text-primary underline decoration-border underline-offset-2 transition-colors duration-100 hover:decoration-text-secondary"
                       >
-                        {job.job_id}
+                        {jobLabel(job.job_id)}
                       </Link>
                       <div className="font-mono text-[11px] text-text-muted">
-                        {job.facility_id} · {job.material}
+                        {facilityLabel(job.facility_id)} · {materialLabel(job.material)}
                         {job.completionEventCount > 1 && (
                           <span
                             className="text-accent-resin"
@@ -180,7 +181,7 @@ export default async function JobsPage({
                       </div>
                     </Td>
                     <Td mono className="py-2 text-text-secondary">
-                      {job.customer_id} · {job.part_id}
+                      {customerLabel(job.customer_id)} · {partLabel(job.part_id)}
                     </Td>
                     <Td mono className="whitespace-nowrap py-2">
                       <span className={job.deliveryRisk === 'overdue' ? 'text-status-critical' : 'text-text-secondary'}>

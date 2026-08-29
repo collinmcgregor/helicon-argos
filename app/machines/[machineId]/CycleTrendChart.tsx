@@ -1,4 +1,5 @@
 import type { RecoveredIncident, WeeklyTrendPoint } from '@/lib/queries/machines';
+import { eventLabel } from '@/lib/present';
 
 const W = 720;
 const H = 240;
@@ -110,7 +111,7 @@ export function CycleTrendChart({
                 fill="var(--color-status-warn)"
                 fontFamily="var(--font-plex-mono)"
               >
-                {e.event_type} {e.event_id}
+                {eventLabel(e.event_type)}
               </text>
             </g>
           ))}

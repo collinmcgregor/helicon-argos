@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import type { Severity } from '@/lib/types';
 import { StatusBadge } from './StatusBadge';
+import { identifierLabel } from '@/lib/present';
 
 const SEVERITY_COLOR: Record<Severity, string> = {
   critical: 'var(--color-status-critical)',
@@ -55,7 +56,7 @@ export function AlertRow({
                 key={id}
                 className="rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[12.5px] text-text-secondary"
               >
-                {id}
+                {identifierLabel(id)}
               </span>
             ))}
           </div>

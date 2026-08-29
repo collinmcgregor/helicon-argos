@@ -22,6 +22,7 @@ import {
   type TrendWindow,
 } from '@/lib/queries/machines';
 import { CycleTrendChart } from './CycleTrendChart';
+import { eventLabel, facilityLabel, jobLabel, machineLabel } from '@/lib/present';
 
 const nf = new Intl.NumberFormat('en-US');
 const WINDOWS: TrendWindow[] = ['2w', '4w', 'all'];
@@ -60,11 +61,11 @@ export default async function MachineDetailPage({
   if (!machine) {
     return (
       <div className="flex max-w-6xl flex-col gap-3">
-        <PageTitle>{machineId}</PageTitle>
+        <PageTitle>{machineLabel(machineId)}</PageTitle>
         <Panel>
           <EmptyState
-            message={`No production machine "${machineId}" — production presses are press_01 … press_06.`}
-            queryContext={`qc_01/qc_02 are QC stations, not machines · horizon ${EVENT_HORIZON_LABEL}`}
+            message={`No production machine "${machineLabel(machineId)}" — production presses are Press 01 … Press 06.`}
+            queryContext={`QC 01/QC 02 are QC stations, not machines · horizon ${EVENT_HORIZON_LABEL}`}
           />
           <div className="flex justify-center pb-2">
             <Link href="/machines" className="text-[13px] text-accent hover:underline">
@@ -110,12 +111,12 @@ export default async function MachineDetailPage({
           </div>
         }
       >
-        {machine.machine_id}
+        {machineLabel(machine.machine_id)}
       </PageTitle>
 
       <div className="flex flex-col gap-1">
         <span className="font-mono text-[12.5px] text-text-secondary">
-          {machine.facility_id} · {nf.format(machine.cycleCount)} cycles ·{' '}
+          {facilityLabel(machine.facility_id)} · {nf.format(machine.cycleCount)} cycles ·{' '}
           {nf.format(machine.jobCount)} jobs · median{' '}
           {median !== null ? `${nf.format(median)}s` : '—'}
         </span>
@@ -125,7 +126,7 @@ export default async function MachineDetailPage({
         {incident && (
           <span className="text-[13px] text-text-secondary">
             <span className="text-status-warn">{String(incident.sensorEvent.metadata.signal ?? 'sensor')}</span>{' '}
-            sensor_glitch{' '}
+            sensor glitch{' '}
             <span className="font-mono text-[12.5px]">{incident.sensorEvent.event_id}</span> (
             {incident.sensorEvent.timestamp.slice(0, 10)}) and maintenance_ping{' '}
             <span className="font-mono text-[12.5px]">{incident.maintenanceEvent.event_id}</span> (
@@ -187,7 +188,7 @@ export default async function MachineDetailPage({
                 }
               >
                 {e.event_type === 'cycle_completed'
-                  ? `${e.job_id} · qty ${e.metadata.quantity ?? '—'} · ${nf.format(Number(e.metadata.cycle_time_seconds))}s`
+                  ? `Job ${jobLabel(e.job_id)} · qty ${e.metadata.quantity ?? '—'} · ${nf.format(Number(e.metadata.cycle_time_seconds))}s`
                   : e.event_type === 'sensor_glitch'
                     ? `${e.metadata.signal ?? 'sensor'} signal glitch`
                     : 'maintenance ping'}
@@ -222,11 +223,11 @@ export default async function MachineDetailPage({
                           href={`/jobs/${j.job_id}${facility ? `?facility=${facility}` : ''}` as Route}
                           className="text-accent hover:underline"
                         >
-                          {j.job_id}
+                          {jobLabel(j.job_id)}
                         </Link>
                       </Td>
                       <Td>
-                        <StatusBadge tone={STATUS_TONE[j.status] ?? 'info'} label={j.status} />
+                        <StatusBadge tone={STATUS_TONE[j.status] ?? 'info'} label={eventLabel(j.status)} />
                       </Td>
                       <Td>
                         <StatusBadge tone={RISK_TONE[j.deliveryRisk]} label={j.deliveryRisk} />

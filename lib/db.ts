@@ -17,7 +17,6 @@ export const sql =
   postgres(databaseUrl, {
     ssl: 'require',
     prepare: false, // transaction-mode pooler compatibility
-    fetch_types: false, // per-connection type fetch desyncs behind the pooler
     max: 5,
     // serverless hygiene: fail fast on a wedged connect instead of hanging the
     // render, and never reuse a connection that outlived a frozen lambda

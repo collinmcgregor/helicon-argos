@@ -1,5 +1,12 @@
 # Helicon Argos (v0.0) — Build Plan
 
+> **Status: partially superseded.** The ontology, modeling rules, and relationship rules here
+> remain authoritative. Feature priority and data findings now live in `ARGOS.md`; execution
+> in `BUILD.md`; page specs in `DESIGN.md` + `pages/`. Known deltas decided after this doc:
+> Supabase Auth is **cut** (password middleware instead); the standalone asset-quality ranking
+> page is **cut** (failure rate is flat — see `ARGOS.md §1`); Ontology Control
+> (`/admin/ontology`) was **added**.
+
 ## Product definition
 
 Helicon Argos is a manufacturing operations digital twin built from `manufacturing_events.jsonl`, a 19,519-row synthetic event log. It is not a 3D factory visualizer and not a generic BI dashboard. It is an operational system that turns fragmented historical events into connected, current-state objects and an explainable exception workflow.
@@ -162,6 +169,16 @@ Implement transparent rules—not ML:
 
 Each alert must include: rule name, severity/priority, a human-readable explanation, implicated object IDs, and supporting event IDs.
 
+#### 7. Admin ontology control
+
+For this demo, the password-gated factory user is an administrator. Add an **Ontology Control** screen that lets that user evolve Argos’s semantic configuration without changing the immutable raw-event log.
+
+The admin can create, edit, or archive object definitions (label, plural label, ID field, description, source type), field definitions (label, type, source mapping, description, visibility), and relationship definitions (from/to object, relationship label, source mapping, provenance).
+
+Persist definitions in Supabase configuration tables and show them immediately in the object catalogue. Every configured field and relationship must declare `observed`, `derived`, or `external` provenance and a source mapping. Adding a definition must never imply that source data was created.
+
+**v0.0 boundary:** the admin may map to known raw fields, approved materialized-view fields, or a future external source—not add raw-event columns, execute arbitrary SQL, or assert unproven relationships. A configured object with no imported records shows an explicit empty state.
+
 ### P1: only after P0 is complete
 
 - Asset, tool, facility, and customer detail pages.
@@ -189,25 +206,26 @@ manufacturing_events.jsonl
 TypeScript or Python ingestion / transformation
           ↓
 Supabase Postgres: raw events + materialized ontology tables
+          ↕
+Ontology configuration tables (admin-managed definitions)
           ↓
 Next.js server components / route handlers
           ↓
 Next.js / React UI
           ↓
-Supabase Auth + Vercel deployment
+Password gate + Vercel deployment
 ```
 
 ### Why this choice
 
-Use Supabase rather than DuckDB as the deployed application database. The dataset is small (19,519 events), relational, and stable enough that Postgres is more than sufficient. Supabase removes the need to separately build hosted persistence and a login/session system; Vercel makes Next.js deployment and environment-variable management straightforward.
+Use Supabase rather than DuckDB as the deployed application database. The dataset is small (19,519 events), relational, and stable enough that Postgres is more than sufficient. Supabase removes the need to separately build hosted persistence; Vercel makes Next.js deployment and environment-variable management straightforward.
 
 DuckDB is excellent for local exploration, but it adds a second data system without giving the MVP a user-facing benefit. It is optional for ad hoc analysis only, not part of the deployed path.
 
 ### Supabase responsibilities
 
 - **Postgres:** tables for raw events and materialized ontology objects/summary views.
-- **Auth:** email/password sign-in with a seeded or manually created demo user for the reviewer.
-- **Row Level Security:** for v0.0, authenticated users may read operational data; no anonymous data access. Add stricter organization/user scoping only when multi-tenant requirements exist.
+- **Ontology configuration:** versioned object, field, and relationship definitions, including editor and timestamp.
 - **Migrations/seeds:** commit schema migrations and a repeatable JSONL ingestion command; never commit Supabase secrets.
 
 ### Vercel responsibilities
@@ -218,9 +236,9 @@ DuckDB is excellent for local exploration, but it adds a second data system with
 
 ### Authentication decision
 
-The product login should be a polished Supabase email/password sign-in screen. Create one reviewer account and provide its credentials with the submission.
+Use a minimal server-side password gate in Next.js middleware, backed by an `APP_PASSWORD` deployment environment variable. It directly satisfies the take-home’s “basic auth password” requirement and avoids consuming the time budget on email confirmation, sessions, and RLS debugging.
 
-The take-home also explicitly requests a “basic auth password.” Confirm whether the evaluator means literal HTTP Basic Auth. If it does, enable Vercel deployment protection or add a minimal server-side password gate in front of Supabase login. Do not place that password in client-side code or the repository.
+For the demo, a user who passes this gate is an administrator. Display an `ADMIN` indicator and gate `/admin/ontology` behind that state. In a production multi-user version, replace the gate with Supabase Auth, role claims/profiles, and Row Level Security policies. Do not place the password in client-side code or the repository.
 
 Suggested UI libraries: Tailwind CSS, TanStack Table, Recharts. Prioritize simple, well-labeled interaction over complex visual effects.
 

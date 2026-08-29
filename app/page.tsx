@@ -299,21 +299,23 @@ export default async function OverviewPage({
       </Panel>
 
       <Panel label="Quality signal">
-        <p className="pb-2 text-[13px] text-text-secondary">
-          Voids are the top defect in all eight materials. Inspection failure rates are flat across
-          presses, tools, facilities, and inspectors. Investigate a shared process step — not a
-          single asset.
-        </p>
+        <div className="pb-3">
+          <p className="text-[14px] font-medium text-text-primary">
+            This is a factory-wide quality problem, not a single-machine problem.
+          </p>
+          <p className="mt-1 text-[13px] text-text-secondary">
+            Failed inspections look similar across presses, tools, facilities, and inspectors.
+            Start with the shared manufacturing process—especially the steps that can create voids.
+          </p>
+        </div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          Failed inspections by defect type
+        </div>
         <MiniPareto
           items={pareto.map((d) => ({ label: formatLabel(d.defect_code), count: d.failedInspections }))}
         />
       </Panel>
 
-      <div className="pb-2 font-mono text-[11px] text-text-muted">
-        Built from {fmt(provenance.totalEvents)} factory events through {EVENT_HORIZON_DAY} ·{' '}
-        {provenance.la01SharePct}% LA 1 / {provenance.la02SharePct}% LA 2 · source:
-        manufacturing_events.jsonl
-      </div>
     </div>
   );
 }

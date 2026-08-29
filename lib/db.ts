@@ -17,7 +17,10 @@ export const sql =
   postgres(databaseUrl, {
     ssl: 'require',
     prepare: false, // transaction-mode pooler compatibility
-    max: 5,
+    // One connection per serverless function. Pages issue parallel queries, but
+    // postgres.js queues them safely; opening five sessions per warm function
+    // exhausts Supabase's small demo pool under concurrent page loads.
+    max: 1,
     // serverless hygiene: fail fast on a wedged connect instead of hanging the
     // render, and never reuse a connection that outlived a frozen lambda
     connect_timeout: 10,

@@ -135,7 +135,7 @@ export default async function OverviewPage({
         </Panel>
       </div>
 
-      <Panel label="Factory" count={facility ? formatFacility(facility) : 'LA 1 · LA 2'}>
+      <Panel label="Factory status" count={facility ? formatFacility(facility) : 'LA 1 · LA 2'}>
         <div className="flex flex-col gap-3">
           <div className={`grid gap-3 ${pulseShown.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {pulseShown.map((p) => (
@@ -148,19 +148,30 @@ export default async function OverviewPage({
                   <span className="font-mono text-[13px] font-medium text-text-primary">
                     {formatFacility(p.facility_id)}
                   </span>
-                  <span className="font-mono text-[11px] text-text-muted">
-                    latest {formatStamp(p.latestEventAt)} · {p.latestEventId}
+                  <span className="text-[11px] text-text-muted">
+                    Data through {formatStamp(p.latestEventAt)}
                   </span>
                 </div>
-                <div className="mt-1 grid grid-cols-4 gap-2 font-mono text-[12.5px] text-text-secondary">
-                  <span>{p.openJobs} open</span>
-                  <span>{p.blockedHeldJobs} blocked/held</span>
-                  <span>{p.overdueJobs} overdue</span>
-                  <span>qty {fmt(p.recent24hQuantity)} recent</span>
+                <div className="mt-3 grid grid-cols-3 divide-x divide-border text-text-secondary">
+                  <div className="pr-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Open work</div>
+                    <div className="mt-0.5 font-mono text-[19px] font-medium text-text-primary">{p.openJobs}</div>
+                    <div className="text-[11px]">Jobs not yet complete</div>
+                  </div>
+                  <div className="px-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Blocked</div>
+                    <div className="mt-0.5 font-mono text-[19px] font-medium text-text-primary">{p.blockedHeldJobs}</div>
+                    <div className="text-[11px]">Jobs unable to proceed</div>
+                  </div>
+                  <div className="pl-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">Past due</div>
+                    <div className="mt-0.5 font-mono text-[19px] font-medium text-text-primary">{p.overdueJobs}</div>
+                    <div className="text-[11px]">Jobs past their due date</div>
+                  </div>
                 </div>
                 {p.topOverdueJobId && (
-                  <div className="mt-1 font-mono text-[11px] text-text-muted">
-                    top overdue job {formatJobId(p.topOverdueJobId)}
+                  <div className="mt-3 text-[11px] text-text-muted">
+                    Largest overdue order: job {formatJobId(p.topOverdueJobId)}
                     {p.topOverdueValue != null && ` · $${fmt(p.topOverdueValue)}`}
                   </div>
                 )}
@@ -187,27 +198,16 @@ export default async function OverviewPage({
               </Link>
             ))}
           </div>
-          <div className="font-mono text-[11px] text-text-muted">
-            recent activity = completed-cycle qty in the final 24h before {EVENT_HORIZON_DISPLAY} — not
-            a &quot;currently running&quot; signal
-            {facility && (
-              <>
-                {' · '}
-                <Link href="/" className="text-accent">
-                  compare all facilities
-                </Link>
-              </>
-            )}
-          </div>
+          {facility && (
+            <Link href="/" className="self-start text-[11px] text-accent hover:underline">
+              Compare both facilities
+            </Link>
+          )}
         </div>
       </Panel>
 
       <div className="grid grid-cols-[3fr_2fr] items-start gap-3">
         <Panel label="Needs attention" count={queue.length} padded={false}>
-          <div className="border-b border-border-faint px-4 py-2 text-[11px] text-text-muted">
-            What deserves an operations lead&apos;s attention right now — click a row to see the
-            evidence.
-          </div>
           {queue.length === 0 ? (
             <div className="p-4">
               <EmptyState
@@ -306,21 +306,23 @@ export default async function OverviewPage({
       </Panel>
 
       <Panel label="Quality signal">
-        <p className="pb-2 text-[13px] text-text-secondary">
-          Voids are the top defect in all eight materials. Inspection failure rates are flat across
-          presses, tools, facilities, and inspectors. Investigate a shared process step — not a
-          single asset.
-        </p>
+        <div className="pb-3">
+          <p className="text-[14px] font-medium text-text-primary">
+            This is a factory-wide quality problem, not a single-machine problem.
+          </p>
+          <p className="mt-1 text-[13px] text-text-secondary">
+            Failed inspections look similar across presses, tools, facilities, and inspectors.
+            Start with the shared manufacturing process—especially the steps that can create voids.
+          </p>
+        </div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          Failed inspections by defect type
+        </div>
         <MiniPareto
           items={pareto.map((d) => ({ label: formatLabel(d.defect_code), count: d.failedInspections }))}
         />
       </Panel>
 
-      <div className="pb-2 font-mono text-[11px] text-text-muted">
-        Built from {fmt(provenance.totalEvents)} factory events through {EVENT_HORIZON_DAY} ·{' '}
-        {provenance.la01SharePct}% LA 1 / {provenance.la02SharePct}% LA 2 · source:
-        manufacturing_events.jsonl
-      </div>
     </div>
   );
 }

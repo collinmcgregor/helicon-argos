@@ -1,47 +1,46 @@
 # Helicon Argos (v0.0)
 
-An exception console for composite manufacturing, built from a 19,519-event
-production log. Argos turns the raw event stream into connected current-state
-objects (jobs, cycles, inspections, machines, alerts) and one investigation
-workflow:
-
-> **Needs-attention queue → alert evidence → job / machine detail → affected work**
-
-Every derived number on every screen drills down to raw `event_id`s, and every
-derived relationship is badged as such — source truth is never overwritten.
+A digital factory twin for composite manufacturing
 
 ## Live app
 
 **https://helicon-argos-collinmcgregors-projects.vercel.app**
 
-Access password: `argos-demo-2026` (this is a work-trial demo; the password in
-the README is deliberate). The signed-in demo user is an admin.
+password: `argos-demo-2026`
 
-## Demo path
+### What the app evaluates
 
-Two suggested walks through the console:
+| Element | What it represents | How it is calculated / used |
+| --- | --- | --- |
+| Job | One customer production order | Lifecycle events establish its current state: created, in progress, blocked, held, or completed. |
+| Production cycle | A completed unit of machine work | Used for cycle-time trends and machine workload; it is context, not completion progress. |
+| Inspection | A QC pass or failure | Recorded at QC stations. Quality is associated with a production press through the shared job, so the UI labels it **derived**. |
+| Machine | A production press | Median cycle time, drift, maintenance signals, and affected jobs are computed from its cycles and events. |
+| Facility | LA 1 or LA 2 | Aggregates open, blocked, and overdue work to give a location-level status snapshot. |
+| Alert | A calculated operational finding | A rule with a business-impact statement, supporting source events, and a route to investigate. |
+| Ontology configuration | Admin-managed definitions of objects, fields, and relationships | Versioned configuration only; it never changes source events or analytical facts. |
 
-1. **The degrading press** — open the `press_03` alert on the overview →
-   machine detail (cycle-time trend, zero maintenance on record) → affected
-   jobs → `job_0152` timeline → traced material `lot_6626`.
-2. **The late money** — overview → overdue tile ($590K) → jobs explorer,
-   filtered to overdue incomplete jobs.
+### Alert criteria
 
-## The five findings the console surfaces (all computed, none hand-written)
+| Finding | Rule | What the operator should do |
+| --- | --- | --- |
+| Slow press | A press’s median cycle time is more than 15% above the median of the other production presses. Drift compares its first and second half of observed cycles. | Open the press investigation, examine the trend and raw cycles, then schedule or verify maintenance. |
+| Overdue customer work | A job is past its due date at the frozen event horizon and its lifecycle is not completed. | Open the overdue jobs list and prioritize recovery by value, customer, and blockage. |
+| Blocked work | A job’s latest lifecycle state is `blocked` or `held`. Missing tools are highlighted when they are the leading recorded block reason. | Resolve the tooling constraint first, then confirm affected jobs resume. |
+| Recovered machine incident | A sensor glitch is followed by maintenance within three days, a later cycle-time spike, and then recovery. | Review as evidence of a possible sensor-to-throughput relationship, not as proof of causality. |
+| Systemic quality signal | Inspection failure rates remain similar across presses, tools, facilities, and inspectors; defects recur across materials. | Investigate the shared process step rather than treating one machine as the cause. |
 
-1. **Quality is systemic, not asset-local** — the 46% in-process inspection fail
-   rate is flat across all presses, tools, materials, facilities, and weeks;
-   `voids` leads defects in all 8 materials → look at the shared cure/vacuum/
-   debulk step, not a machine.
-2. **press_03 is silently degrading** — median cycle 1,294s, 25% above fleet and
-   rising, with zero maintenance on record.
-3. **$590K of order value is late** — 26 overdue incomplete jobs (price coverage
-   disclosed: 150/312 jobs carry estimates).
-4. **Work is stranded on tooling** — `missing_tool` causes 28 of 68 blocks; 9
-   jobs are blocked/held right now.
-5. **Traceability works end to end** — `job_0152` is blocked *and* lot-scanned:
-   alert → timeline → `lot_6626` → material → customer (honest caveat: 14/312
-   jobs have lot scans).
+## Page guide
+
+| Page | Primary question | Key elements | Where it leads |
+| --- | --- | --- | --- |
+| **Overview** (`/`) | What needs attention first? | KPI tiles, labeled factory status, priority queue, selected investigation | Overdue jobs, machine investigation, or filtered blocked work |
+| **Jobs** (`/jobs`) | Which orders need action? | Filterable current-state job table, due-date and value-at-risk context | Job detail |
+| **Job detail** (`/jobs/:jobId`) | What happened to this order? | Lifecycle and production timeline, machines/tools, inspections, blockers, material-lot traceability | Linked machines and raw timeline evidence |
+| **Machines** (`/machines`) | Which press needs investigation? | Fleet comparison table with cycle-time and drift signals | Machine detail |
+| **Machine detail** (`/machines/:machineId`) | Is this press underperforming, and why? | Performance strip, weekly cycle-time chart, affected work, readable raw-event table, quality-rate chart and raw inspection evidence | Specific jobs and event records |
+| **Alerts** (`/alerts`) | What rules are currently firing? | All derived findings with business impact and evidence links | The relevant job or machine investigation |
+| **Ontology Control** (`/admin/ontology`) | How does Argos interpret the factory? | Versioned object, field, and relationship definitions; ontology map | Admin configuration history |
 
 ## Stack
 
@@ -53,32 +52,6 @@ Two suggested walks through the console:
 | Auth | Deliberate minimal password gate in Next.js middleware (`APP_PASSWORD` env var, cookie session) — per the brief's "basic auth password"; no user accounts by design |
 | Testing | Three layers — SQL validation gates (`npm run validate`), exact-value query tests + route smoke tests (vitest), `npm run check` as the single ship gate; plus an independent JSONL recompute audit (0 mismatches) |
 | Deploy | Vercel (functions pinned to `pdx1`, same region as the database) |
-
-The clock is frozen to the event horizon (`2026-08-13T23:06:33Z`,
-`lib/constants.ts` / `frozen_now()` in SQL) so "overdue" stays meaningful on a
-historical dataset.
-
-## Run it locally
-
-```bash
-cp .env.example .env.local   # fill in DATABASE_URL, SUPABASE_*, APP_PASSWORD
-npm install
-npm run ingest               # one command: schema + bulk \copy load + derived views
-npm run validate             # 18 hard asserts: counts, $590,465, press_03, QC guard
-npm run dev
-```
-
-`npm run check` = validate + vitest (query + smoke layers) + `next build` —
-the ship gate used throughout the build.
-
-### Environment variables (`.env.example`)
-
-| Variable | Notes |
-| --- | --- |
-| `DATABASE_URL` | Supabase pooler connection string. On Vercel use port **6543** (transaction mode); locally use port **5432** (session mode). |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase key. |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. |
-| `APP_PASSWORD` | Password for the middleware gate (the live demo uses `argos-demo-2026`). |
 
 ## Repo tour
 
@@ -93,10 +66,4 @@ docs/                     product plan, design system, data contract, per-page s
 tests/                    query-layer exact-value tests + route smoke tests
 ```
 
-`/admin/ontology` edits versioned semantic configuration (objects, fields,
-relationships with observed/derived/external provenance) and renders the
-read-only ontology map from it — configuration changes never touch source
-events.
 
-An independent audit recomputed every headline number straight from the JSONL
-(no shared code with the SQL layer) and matched the UI exactly, 0 mismatches.

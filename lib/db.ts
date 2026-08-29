@@ -17,6 +17,7 @@ export const sql =
   postgres(databaseUrl, {
     ssl: 'require',
     prepare: false, // transaction-mode pooler compatibility
+    // Overview queries are independent; allow one request to render promptly.
     max: 5,
   });
 

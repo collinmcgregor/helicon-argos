@@ -36,14 +36,25 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 
 ## Page queries & tests (W1)
 
-- Query-module pattern (set by `lib/queries/overview.ts`): exported functions take the
-  postgres `Sql` client as their first argument — pages pass `lib/db.ts`'s client, tests pass
-  `tests/helpers.ts`'s. This is the only way a `server-only` data path stays unit-testable.
-- Smoke HTTP checks arm only when `SMOKE_BASE_URL` is set (`describe.runIf`); `npm run check`
-  runs vitest *before* `next build`, so no server exists during the gate — always-on smoke
-  assertions must recheck render inputs via SQL instead.
-- Don't run `npm run check` while a local `next start` is up: its pool plus the test clients
-  exhausts the Supabase session pool (15) → `EMAXCONNSESSION`.
+- Two working patterns for testing a `server-only` data path: overview passes the postgres
+  `Sql` client as each query function's first argument (DI; `lib/queries/overview.ts`);
+  jobs imports `lib/db.ts` directly and its test does `vi.mock('server-only', () => ({}))`,
+  importing `tests/helpers` *before* the module (dotenv must run before db init) and
+  `.end()`ing both clients in `afterAll` (`tests/queries/jobs.test.ts`).
+- postgres.js rows: timestamptz columns come back as `Date` objects, `count(*)`/`sum()` as
+  strings — convert at the query-module boundary.
+- Smoke sections: `npm run check` runs vitest *before* `next build`, so no server exists
+  during the gate. overview gates HTTP checks on `SMOKE_BASE_URL` (`describe.runIf`) and
+  rechecks render inputs via SQL; jobs boots its own `next dev` on a task-unique port in
+  `beforeAll` (honoring `SMOKE_BASE_URL` when set) and retries fetches because transient
+  pooler auth timeouts (EAUTHTIMEOUT) can stream an error fallback.
+- The Supabase session pool is 15: don't run `npm run check` while a local `next start` is
+  up (EMAXCONNSESSION).
+- `notFound()` on a streamed page still returns HTTP 200 — assert body content, not status.
+  SSR splits JSX interpolations with `<!-- -->`; never assert a string crossing a `{value}`
+  boundary.
+- Extra named exports from a `page.tsx` fail Next's page-export typecheck — put shared page
+  helpers in a sibling non-route file (e.g. `app/jobs/format.ts`).
 - Overview alert selection is URL state: `/?alert=<alert_id>` re-renders the Selected
   investigation panel server-side (rows link there, not to their destinations).
 ## Ontology Control (W1-admin)

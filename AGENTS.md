@@ -34,6 +34,19 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   page queries must honor it. `tests/smoke/routes.test.ts` is append-only per task —
   add your section under your marked heading, never edit others'.
 
+## Page queries & tests (W1)
+
+- Query-module pattern (set by `lib/queries/overview.ts`): exported functions take the
+  postgres `Sql` client as their first argument — pages pass `lib/db.ts`'s client, tests pass
+  `tests/helpers.ts`'s. This is the only way a `server-only` data path stays unit-testable.
+- Smoke HTTP checks arm only when `SMOKE_BASE_URL` is set (`describe.runIf`); `npm run check`
+  runs vitest *before* `next build`, so no server exists during the gate — always-on smoke
+  assertions must recheck render inputs via SQL instead.
+- Don't run `npm run check` while a local `next start` is up: its pool plus the test clients
+  exhausts the Supabase session pool (15) → `EMAXCONNSESSION`.
+- Overview alert selection is URL state: `/?alert=<alert_id>` re-renders the Selected
+  investigation panel server-side (rows link there, not to their destinations).
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

@@ -85,7 +85,11 @@ export function TopBar() {
               <button
                 type="button"
                 role="menuitem"
-                onClick={() => setMenuOpen(false)}
+                onClick={async () => {
+                  setMenuOpen(false);
+                  await fetch('/api/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
                 className="block w-full cursor-pointer px-3 py-2 text-left text-[13px] text-text-secondary transition-colors duration-100 hover:bg-bg-3 hover:text-text-primary"
               >
                 Sign out

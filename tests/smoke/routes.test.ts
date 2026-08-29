@@ -6,6 +6,24 @@ import { sql, NOW_ISO } from '../helpers';
 // deployed URL via SMOKE_BASE_URL in Wave 2.
 export const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:3000';
 
+// middleware.ts gates every route behind APP_PASSWORD; carry the auth cookie on
+// every smoke fetch so the suite exercises pages, not the login redirect.
+const APP_PASSWORD = process.env.APP_PASSWORD;
+const realFetch = globalThis.fetch;
+globalThis.fetch = ((input: Parameters<typeof realFetch>[0], init?: RequestInit) =>
+  realFetch(
+    input,
+    APP_PASSWORD
+      ? {
+          ...init,
+          headers: {
+            ...((init?.headers as Record<string, string>) ?? {}),
+            cookie: `argos_auth=${APP_PASSWORD}`,
+          },
+        }
+      : init,
+  )) as typeof fetch;
+
 // ---------------------------------------------------------------------------
 // W0-B · harness wiring (do not edit; append your section below)
 // ---------------------------------------------------------------------------

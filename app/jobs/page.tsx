@@ -5,7 +5,14 @@ import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import {
+  EVENT_HORIZON_DISPLAY,
+  formatDate,
+  formatEntityId,
+  formatFacility,
+  formatJobId,
+  formatLabel,
+} from '@/lib/display';
 import {
   listCustomers,
   listJobs,
@@ -41,7 +48,7 @@ function parseFilter(params: Record<string, string | string[] | undefined>): Job
 
 function pageTitle(filter: JobsFilter): string {
   if (filter.risk === 'overdue') return 'Overdue incomplete jobs';
-  if (filter.reason) return `Jobs blocked: ${filter.reason}`;
+  if (filter.reason) return `Jobs blocked: ${formatLabel(filter.reason).toLowerCase()}`;
   switch (filter.status) {
     case 'blocked-held':
       return 'Blocked / held jobs';
@@ -60,7 +67,7 @@ function riskCell(job: JobListItem): string {
     parts.push('overdue');
     if (job.valueAtRisk !== null) parts.push(money(job.valueAtRisk));
   }
-  if (job.block_reason) parts.push(job.block_reason);
+  if (job.block_reason) parts.push(formatLabel(job.block_reason));
   return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
@@ -93,7 +100,7 @@ export default async function JobsPage({
     <div className="flex flex-col gap-3">
       <PageTitle
         right={
-          <span className="font-mono text-[11px] text-text-muted">horizon {EVENT_HORIZON_LABEL}</span>
+          <span className="font-mono text-[11px] text-text-muted">as of {EVENT_HORIZON_DISPLAY}</span>
         }
       >
         {pageTitle(filter)}
@@ -123,7 +130,7 @@ export default async function JobsPage({
 
       <JobsFilterBar customers={customers} />
 
-      <Panel padded={false} label="jobs_current" count={jobs.length}>
+      <Panel padded={false} label="Jobs" count={jobs.length}>
         {jobs.length === 0 ? (
           <div className="flex flex-col items-center">
             <EmptyState
@@ -164,10 +171,10 @@ export default async function JobsPage({
                         href={`/jobs/${job.job_id}${forward}` as Route}
                         className="font-mono text-[12.5px] text-text-primary underline decoration-border underline-offset-2 transition-colors duration-100 hover:decoration-text-secondary"
                       >
-                        {job.job_id}
+                        {formatJobId(job.job_id)}
                       </Link>
                       <div className="font-mono text-[11px] text-text-muted">
-                        {job.facility_id} · {job.material}
+                        {formatFacility(job.facility_id)} · {formatLabel(job.material)}
                         {job.completionEventCount > 1 && (
                           <span
                             className="text-accent-resin"
@@ -180,11 +187,11 @@ export default async function JobsPage({
                       </div>
                     </Td>
                     <Td mono className="py-2 text-text-secondary">
-                      {job.customer_id} · {job.part_id}
+                      {formatEntityId(job.customer_id)} · {formatEntityId(job.part_id)}
                     </Td>
                     <Td mono className="whitespace-nowrap py-2">
                       <span className={job.deliveryRisk === 'overdue' ? 'text-status-critical' : 'text-text-secondary'}>
-                        {job.due_date}
+                        {formatDate(job.due_date)}
                       </span>
                     </Td>
                     <Td numeric className="py-2 text-text-secondary">

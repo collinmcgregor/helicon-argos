@@ -76,6 +76,19 @@ This file is the project's committed home for project-intrinsic agent knowledge:
   deletes them in before/afterAll; `validate.sql` uses `>=` counts so leftovers can't break
   it, but keep test keys prefixed.
 
+## Display layer (W2 polish-display)
+
+- Everything user-visible formats through `lib/display.ts`: entity ids
+  (press_03 → "Press 3", la_01 → "LA 1", job_0276 → "0276", cust_x → title case), snake
+  labels, seconds → minutes (`formatMinutes`), and Pacific-time dates
+  (`EVENT_HORIZON_DISPLAY`, `formatDate`/`formatStamp` — date-only strings format in UTC so
+  the calendar day never shifts). `humanizeText()` prettifies query-built prose (alert
+  copy) at render. Raw `evt_*` ids are the audit key — never prettified — and URLs/query
+  params stay raw (`/jobs/job_0276`, `?facility=la_01`); smoke markers rely on both.
+- Native `<select>` is banned in UI (OS-styled popup): use `components/Listbox.tsx` —
+  controlled (value/onChange) for URL-state filters, form mode (name/defaultValue renders a
+  hidden input) inside server-action forms.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

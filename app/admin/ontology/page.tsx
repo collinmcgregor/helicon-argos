@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { PageTitle } from '@/components/PageTitle';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import { EVENT_HORIZON_DISPLAY } from '@/lib/display';
 import {
   listObjectDefs,
   listRelationshipDefs,
@@ -73,7 +73,7 @@ export default async function OntologyControlPage({
           events and materialized views stay read-only here.
         </p>
         <p className="mt-1 font-mono text-[11px] text-text-muted">
-          event horizon {EVENT_HORIZON_LABEL} · source: ontology_* configuration tables
+          data through {EVENT_HORIZON_DISPLAY} · source: ontology_* configuration tables
         </p>
       </div>
 

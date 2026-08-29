@@ -1,6 +1,8 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Listbox } from '@/components/Listbox';
+import { formatEntityId } from '@/lib/display';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
@@ -15,36 +17,9 @@ const STATUS_OPTIONS = [
 
 const FACILITY_OPTIONS = [
   { value: '', label: 'All facilities' },
-  { value: 'la_01', label: 'LA-01' },
-  { value: 'la_02', label: 'LA-02' },
+  { value: 'la_01', label: 'LA 1' },
+  { value: 'la_02', label: 'LA 2' },
 ];
-
-function Select({
-  name,
-  value,
-  options,
-  onChange,
-}: {
-  name: string;
-  value: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <select
-      aria-label={name}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-6 cursor-pointer rounded-sm border border-border bg-bg-2 px-1.5 font-mono text-[11px] text-text-secondary"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 export function JobsFilterBar({ customers }: { customers: string[] }) {
   const router = useRouter();
@@ -65,24 +40,24 @@ export function JobsFilterBar({ customers }: { customers: string[] }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Select
-        name="facility"
+      <Listbox
+        ariaLabel="facility"
         value={searchParams.get('facility') ?? ''}
         options={FACILITY_OPTIONS}
         onChange={(v) => set('facility', v)}
       />
-      <Select
-        name="status"
+      <Listbox
+        ariaLabel="status"
         value={searchParams.get('status') ?? ''}
         options={STATUS_OPTIONS}
         onChange={(v) => set('status', v)}
       />
-      <Select
-        name="customer"
+      <Listbox
+        ariaLabel="customer"
         value={searchParams.get('customer') ?? ''}
         options={[
           { value: '', label: 'All customers' },
-          ...customers.map((c) => ({ value: c, label: c })),
+          ...customers.map((c) => ({ value: c, label: formatEntityId(c) })),
         ]}
         onChange={(v) => set('customer', v)}
       />

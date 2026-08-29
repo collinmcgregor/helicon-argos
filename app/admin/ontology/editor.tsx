@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
+import { Listbox } from '@/components/Listbox';
+import { formatStamp } from '@/lib/display';
 import { Panel } from '@/components/Panel';
 import { SectionLabel } from '@/components/SectionLabel';
 import { DerivedBadge } from '@/components/DerivedBadge';
@@ -119,11 +121,17 @@ function SourceLine({ mapping, count }: { mapping: string | null; count: number 
 function ProvenanceSelect({ defaultValue }: { defaultValue?: string }) {
   return (
     <Field label="Provenance">
-      <select name="provenance" defaultValue={defaultValue ?? 'observed'} className={inputCls}>
-        <option value="observed">observed</option>
-        <option value="derived">derived (requires caveat)</option>
-        <option value="external">external</option>
-      </select>
+      <Listbox
+        name="provenance"
+        ariaLabel="Provenance"
+        size="md"
+        defaultValue={defaultValue ?? 'observed'}
+        options={[
+          { value: 'observed', label: 'observed' },
+          { value: 'derived', label: 'derived (requires caveat)' },
+          { value: 'external', label: 'external' },
+        ]}
+      />
     </Field>
   );
 }
@@ -131,14 +139,16 @@ function ProvenanceSelect({ defaultValue }: { defaultValue?: string }) {
 function SourceSelect({ defaultValue }: { defaultValue?: string | null }) {
   return (
     <Field label="Source mapping (approved sources only)">
-      <select name="source_mapping" defaultValue={defaultValue ?? ''} className={inputCls}>
-        <option value="">— none (configured; no records from a source) —</option>
-        {APPROVED_SOURCES.map((s) => (
-          <option key={s.mapping} value={s.mapping}>
-            {s.mapping}
-          </option>
-        ))}
-      </select>
+      <Listbox
+        name="source_mapping"
+        ariaLabel="Source mapping"
+        size="md"
+        defaultValue={defaultValue ?? ''}
+        options={[
+          { value: '', label: '— none (configured; no records from a source) —' },
+          ...APPROVED_SOURCES.map((s) => ({ value: s.mapping, label: s.mapping })),
+        ]}
+      />
     </Field>
   );
 }
@@ -160,7 +170,7 @@ function HistoryList({
         {rows.map((r) => (
           <div key={r.version} className="flex items-baseline gap-3 border-b border-border-faint py-1">
             <Mono>v{r.version}</Mono>
-            <Mono>{r.created_at.slice(0, 19).replace('T', ' ')}</Mono>
+            <Mono>{formatStamp(r.created_at)}</Mono>
             <span className="text-[12px] text-text-secondary">{r.editor}</span>
             <span className={`text-[11px] uppercase ${r.status === 'archived' ? 'text-text-muted' : 'text-status-ok'}`}>
               {r.status}
@@ -281,7 +291,7 @@ function ObjectDetail({
         {def.prior_version_id !== null && <span className="text-[11px] text-text-muted"> · prior #{def.prior_version_id}</span>}
       </Meta>
       <Meta label="Last change">
-        <Mono>{def.created_at.slice(0, 19).replace('T', ' ')}</Mono>
+        <Mono>{formatStamp(def.created_at)}</Mono>
         <span className="text-text-secondary"> by {def.editor}</span>
         <span className={`ml-2 text-[11px] uppercase ${def.status === 'archived' ? 'text-text-muted' : 'text-status-ok'}`}>{def.status}</span>
       </Meta>
@@ -308,15 +318,15 @@ function RelationshipForm({
   existing?: RelationshipDef;
 }) {
   const objectSelect = (name: string, defaultValue?: string) => (
-    <select name={name} defaultValue={defaultValue} className={inputCls}>
-      {objects
+    <Listbox
+      name={name}
+      ariaLabel={name}
+      size="md"
+      defaultValue={defaultValue}
+      options={objects
         .filter((o) => o.status === 'active')
-        .map((o) => (
-          <option key={o.key} value={o.key}>
-            {o.label}
-          </option>
-        ))}
-    </select>
+        .map((o) => ({ value: o.key, label: o.label }))}
+    />
   );
   return (
     <form action={existing ? editRelationship : addRelationship} className="flex flex-col gap-3">
@@ -377,7 +387,7 @@ function RelationshipDetail({
       <Meta label="Source"><SourceLine mapping={def.source_mapping} count={count} /></Meta>
       <Meta label="Version"><Mono>v{def.version}</Mono></Meta>
       <Meta label="Last change">
-        <Mono>{def.created_at.slice(0, 19).replace('T', ' ')}</Mono>
+        <Mono>{formatStamp(def.created_at)}</Mono>
         <span className="text-text-secondary"> by {def.editor}</span>
         <span className={`ml-2 text-[11px] uppercase ${def.status === 'archived' ? 'text-text-muted' : 'text-status-ok'}`}>{def.status}</span>
       </Meta>
@@ -400,15 +410,14 @@ function FieldForm({ s, objects }: { s: EditorState; objects: ObjectDef[] }) {
       <FacilityCarry facility={s.facility} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Object">
-          <select name="object_key" className={inputCls}>
-            {objects
+          <Listbox
+            name="object_key"
+            ariaLabel="Object"
+            size="md"
+            options={objects
               .filter((o) => o.status === 'active')
-              .map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-          </select>
+              .map((o) => ({ value: o.key, label: o.label }))}
+          />
         </Field>
         <Field label="Key (lower_snake_case)">
           <input name="key" className={`${inputCls} font-mono`} placeholder="operator_id" required />
@@ -419,13 +428,15 @@ function FieldForm({ s, objects }: { s: EditorState; objects: ObjectDef[] }) {
           <input name="label" className={inputCls} required />
         </Field>
         <Field label="Type">
-          <select name="field_type" className={inputCls}>
-            {['text', 'integer', 'numeric', 'boolean', 'timestamp', 'enum'].map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          <Listbox
+            name="field_type"
+            ariaLabel="Type"
+            size="md"
+            options={['text', 'integer', 'numeric', 'boolean', 'timestamp', 'enum'].map((t) => ({
+              value: t,
+              label: t,
+            }))}
+          />
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -469,7 +480,7 @@ function FieldDetail({
       <Meta label="Source"><SourceLine mapping={def.source_mapping} count={count} /></Meta>
       <Meta label="Version"><Mono>v{def.version}</Mono></Meta>
       <Meta label="Last change">
-        <Mono>{def.created_at.slice(0, 19).replace('T', ' ')}</Mono>
+        <Mono>{formatStamp(def.created_at)}</Mono>
         <span className="text-text-secondary"> by {def.editor}</span>
         <span className={`ml-2 text-[11px] uppercase ${def.status === 'archived' ? 'text-text-muted' : 'text-status-ok'}`}>{def.status}</span>
       </Meta>

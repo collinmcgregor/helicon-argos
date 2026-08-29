@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { formatEntityId } from '@/lib/display';
 
 const FACILITIES = [
   { value: null, label: 'All facilities' },
-  { value: 'la_01', label: 'LA-01' },
-  { value: 'la_02', label: 'LA-02' },
+  { value: 'la_01', label: 'LA 1' },
+  { value: 'la_02', label: 'LA 2' },
 ] as const;
 
 // 48px top bar: mono breadcrumb · facility selector (persisted in ?facility=) ·
@@ -36,7 +37,9 @@ export function TopBar() {
         {crumbs.map((crumb, i) => (
           <span key={i}>
             {i > 0 && <span className="text-text-muted"> / </span>}
-            <span className={i === crumbs.length - 1 ? 'text-text-primary' : ''}>{crumb}</span>
+            <span className={i === crumbs.length - 1 ? 'text-text-primary' : ''}>
+              {formatEntityId(crumb)}
+            </span>
           </span>
         ))}
       </span>

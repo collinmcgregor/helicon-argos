@@ -1,5 +1,5 @@
 import { sql } from '@/lib/db';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import { EVENT_HORIZON_DISPLAY, formatDateShort, formatEntityId, humanizeText } from '@/lib/display';
 import type { FacilityId } from '@/lib/types';
 import { AlertRow } from '@/components/AlertRow';
 import { EmptyState } from '@/components/EmptyState';
@@ -24,7 +24,7 @@ export default async function AlertsPage({
   return (
     <div className="flex max-w-6xl flex-col gap-3">
       <PageTitle
-        right={<span className="font-mono text-[11px] text-text-muted">horizon {EVENT_HORIZON_LABEL}</span>}
+        right={<span className="font-mono text-[11px] text-text-muted">as of {EVENT_HORIZON_DISPLAY}</span>}
       >
         Alerts
       </PageTitle>
@@ -39,11 +39,11 @@ export default async function AlertsPage({
             <AlertRow
               key={a.alert_id}
               severity={a.severity}
-              title={a.title}
-              explanation={a.explanation}
-              impact={a.businessImpact ?? undefined}
-              ids={[...a.implicated_ids, ...a.supporting_event_ids.slice(0, 3)]}
-              timeLabel={a.latest_event_at?.slice(0, 10)}
+              title={humanizeText(a.title)}
+              explanation={humanizeText(a.explanation)}
+              impact={a.businessImpact ? humanizeText(a.businessImpact) : undefined}
+              ids={[...a.implicated_ids.map(formatEntityId), ...a.supporting_event_ids.slice(0, 3)]}
+              timeLabel={a.latest_event_at ? formatDateShort(a.latest_event_at) : undefined}
               href={`${a.href}${facility ? `${a.href.includes('?') ? '&' : '?'}facility=${facility}` : ''}`}
             />
           ))

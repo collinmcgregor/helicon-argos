@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { sql } from '@/lib/db';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import { EVENT_HORIZON_DISPLAY, formatDate, formatEntityId, formatMinutes } from '@/lib/display';
 import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -23,7 +23,7 @@ export default async function MachinesPage({
   return (
     <div className="flex max-w-6xl flex-col gap-3">
       <PageTitle
-        right={<span className="font-mono text-[11px] text-text-muted">horizon {EVENT_HORIZON_LABEL}</span>}
+        right={<span className="font-mono text-[11px] text-text-muted">as of {EVENT_HORIZON_DISPLAY}</span>}
       >
         Machines
       </PageTitle>
@@ -48,7 +48,7 @@ export default async function MachinesPage({
                     href={`/machines/${m.machine_id}${facilityQs}` as Route}
                     className="text-accent hover:underline"
                   >
-                    {m.machine_id}
+                    {formatEntityId(m.machine_id)}
                   </Link>
                 </Td>
                 <Td>
@@ -65,24 +65,24 @@ export default async function MachinesPage({
                 </Td>
                 <Td numeric>{nf.format(m.cycleCount)}</Td>
                 <Td numeric>
-                  {m.medianCycleSeconds !== null ? `${nf.format(m.medianCycleSeconds)}s` : '—'}
+                  {m.medianCycleSeconds !== null ? formatMinutes(m.medianCycleSeconds) : '—'}
                 </Td>
                 <Td numeric>
-                  {m.fleetMedianSeconds !== null ? `${nf.format(m.fleetMedianSeconds)}s` : '—'}
+                  {m.fleetMedianSeconds !== null ? formatMinutes(m.fleetMedianSeconds) : '—'}
                 </Td>
                 <Td numeric>
                   {m.cycleTimeDriftPct !== null
                     ? `${m.cycleTimeDriftPct > 0 ? '+' : ''}${Math.round(m.cycleTimeDriftPct)}%`
                     : '—'}
                 </Td>
-                <Td mono>{m.lastEventAt?.slice(0, 10) ?? '—'}</Td>
+                <Td mono>{m.lastEventAt ? formatDate(m.lastEventAt) : '—'}</Td>
               </Tr>
             ))}
           </tbody>
         </Table>
       </Panel>
       <span className="text-[11px] text-text-muted">
-        Timing from completed production cycles. QC stations qc_01/qc_02 are not production
+        Timing from completed production cycles. QC stations QC 1/QC 2 are not production
         machines; their inspections attribute to presses only via the derived Job → Cycle
         association.
       </span>

@@ -476,7 +476,7 @@ export async function getAlertSummaries(sql: Db, facility?: FacilityId): Promise
       rule: 'overdue_incomplete',
       severity: 'critical',
       title: 'Overdue incomplete work',
-      explanation: `${od.n} jobs past due at the frozen event horizon and not completed`,
+      explanation: `${od.n} jobs are past their promised due date and still unfinished`,
       businessImpact: od.value
         ? `$${fmt.format(Math.round(od.value))} estimated order value at risk (price coverage: 150 of 312 jobs)`
         : null,

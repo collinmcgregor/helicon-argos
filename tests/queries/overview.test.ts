@@ -48,7 +48,7 @@ describe('needs-attention queue', () => {
 
     const [press03, overdue, tooling, press06] = q;
     expect(press03.implicated_ids).toContain('press_03');
-    expect(press03.explanation).toContain('1,294');
+    expect(press03.explanation).toContain('21.6 min');
     expect(press03.explanation).toContain('25%'); // floored vs 1,029s median-of-press-medians (matches machine detail)
     expect(press03.explanation).toMatch(/no maintenance/i);
 
@@ -65,7 +65,7 @@ describe('needs-attention queue', () => {
     expect(press06.implicated_ids).toContain('press_06');
     expect(press06.supporting_event_ids).toContain('evt_010715'); // Jul 24 sensor_glitch
     expect(press06.supporting_event_ids).toContain('evt_011175'); // Jul 25 maintenance_ping
-    expect(press06.explanation).toContain('1,810'); // ping+7d..14d spike window (matches machine detail)
+    expect(press06.explanation).toContain('30.2 min'); // 1,810s spike window (matches machine detail)
   });
 
   it('every alert is derived, drillable, and inside the frozen horizon', async () => {
@@ -158,10 +158,10 @@ describe('systemic quality + provenance', () => {
     const pareto = await getDefectPareto(sql);
     const actions = deriveRecommendedActions(queue, pareto);
     expect(actions).toHaveLength(4);
-    expect(actions[0].text).toContain('press_03');
+    expect(actions[0].text).toContain('Press 3');
     expect(actions[0].href).toBe('/machines/press_03');
     expect(actions[1].text).toContain('26');
-    expect(actions[2].text).toContain('missing_tool');
+    expect(actions[2].text).toContain('missing tools');
     expect(actions[3].text).toContain('voids');
   });
 });

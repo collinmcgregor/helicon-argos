@@ -64,8 +64,10 @@ describe('w1-overview route /', () => {
       const res = await fetch(`${BASE}/`);
       expect(res.status).toBe(200);
       const html = await res.text();
-      // the DerivedBadge label is lowercase in markup, uppercased by CSS
-      for (const key of ['Operations overview', '590,465', 'press_03', '1,294', 'voids', '19,519', 'derived']) {
+      // the DerivedBadge label is lowercase in markup, uppercased by CSS;
+      // display strings are humanized (Press 3, minutes) but /machines/press_03
+      // hrefs stay raw
+      for (const key of ['Operations overview', '590,465', 'press_03', 'Press 3', '21.6 min', 'Voids', '19,519', 'derived']) {
         expect(html).toContain(key);
       }
     });
@@ -133,9 +135,10 @@ describe('w1-jobs routes', () => {
   }
 
   it('GET /jobs renders the explorer', async () => {
+    // hrefs keep the raw id; the cell text shows the bare '0152'
     const html = await fetchPage('/jobs', 'job_0152');
     expect(html).toContain('Jobs');
-    expect(html).toContain('jobs_current');
+    expect(html).toContain('Nimbus'); // cust_nimbus displays as a bare name
   }, 40_000);
 
   it('GET /jobs?risk=overdue echoes the filter with honest money coverage', async () => {
@@ -146,8 +149,8 @@ describe('w1-jobs routes', () => {
   }, 40_000);
 
   it('GET /jobs/job_0152 shows the blocked + lot-scanned evidence timeline', async () => {
-    const html = await fetchPage('/jobs/job_0152', 'lot_6626');
-    expect(html).toContain('engineering_hold');
+    const html = await fetchPage('/jobs/job_0152', 'Lot 6626');
+    expect(html).toContain('engineering hold');
     expect(html).toContain('evt_011481'); // lot-scan source event
     expect(html).toContain('evt_011504'); // open block source event
     expect(html).toContain('Lot-scanned data available for');
@@ -188,7 +191,7 @@ describe('w1-machines routes', () => {
       expect(res.status).toBe(200);
       const html = await res.text();
       // the DerivedBadge label is lowercase in markup, uppercased by CSS
-      for (const key of ['press_03', '1,294', '25% above', 'no maintenance recorded', 'Job → Cycle association', 'derived']) {
+      for (const key of ['Press 3', '21.6 min', '25% above', 'no maintenance on record', 'Job → Cycle association', 'derived']) {
         expect(html).toContain(key);
       }
     });
@@ -197,7 +200,7 @@ describe('w1-machines routes', () => {
       const res = await fetch(`${BASE}/machines/press_06`);
       expect(res.status).toBe(200);
       const html = await res.text();
-      for (const key of ['evt_010715', 'evt_011175', 'followed by', '1,810']) {
+      for (const key of ['evt_010715', 'evt_011175', 'followed by', '30.2 min']) {
         expect(html).toContain(key);
       }
       expect(html.toLowerCase()).not.toContain('caused');
@@ -215,7 +218,7 @@ describe('w1-machines routes', () => {
       const res = await fetch(`${BASE}/alerts`);
       expect(res.status).toBe(200);
       const html = await res.text();
-      for (const key of ['press_03', '26 jobs', 'Recovered incident — press_06', 'evt_010715']) {
+      for (const key of ['Press 3', '26 jobs', 'Recovered incident — Press 6', 'evt_010715']) {
         expect(html).toContain(key);
       }
     });

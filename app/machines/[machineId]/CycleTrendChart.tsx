@@ -1,3 +1,4 @@
+import { formatDate, formatDateShort, formatEntityId } from '@/lib/display';
 import type { RecoveredIncident, WeeklyTrendPoint } from '@/lib/queries/machines';
 
 const W = 720;
@@ -26,8 +27,12 @@ export function CycleTrendChart({
     .filter((v): v is number => v !== null);
   if (points.length === 0 || values.length === 0) return null;
 
-  const yLo = Math.max(0, Math.floor((Math.min(...values) - 60) / 200) * 200);
-  const yHi = Math.ceil((Math.max(...values) + 60) / 200) * 200;
+  // y domain and ticks are computed in whole minutes so labels read cleanly
+  const loMin = Math.max(0, Math.floor(Math.min(...values) / 60) - 1);
+  const hiMin = Math.ceil(Math.max(...values) / 60) + 1;
+  const minuteStep = [1, 2, 5, 10, 15, 30].find((s) => (hiMin - loMin) / s <= 6) ?? 60;
+  const yLo = loMin * 60;
+  const yHi = hiMin * 60;
   const t0 = Date.parse(points[0].weekStart);
   const t1 = Date.parse(points[points.length - 1].weekStart) + 7 * DAY;
 
@@ -51,8 +56,10 @@ export function CycleTrendChart({
   };
 
   const yTicks: number[] = [];
-  const step = yHi - yLo > 1200 ? 400 : 200;
-  for (let v = yLo; v <= yHi; v += step) yTicks.push(v);
+  for (let m = Math.ceil(loMin / minuteStep) * minuteStep; m <= hiMin; m += minuteStep)
+    yTicks.push(m * 60);
+  // thin x labels so long windows don't overlap: at most ~8, always the ends
+  const labelEvery = Math.max(1, Math.ceil(points.length / 8));
 
   const annotations = incident
     ? [incident.sensorEvent, incident.maintenanceEvent].filter(
@@ -65,7 +72,7 @@ export function CycleTrendChart({
       <div className="flex items-center gap-4 pb-2 font-mono text-[11px] text-text-muted">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-[3px] w-4" style={{ background: 'var(--color-series-1)' }} />
-          {machineId}
+          {formatEntityId(machineId)}
         </span>
         <span className="flex items-center gap-1.5">
           <svg width="16" height="3" aria-hidden="true">
@@ -89,15 +96,18 @@ export function CycleTrendChart({
             <g key={v}>
               <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} stroke="var(--color-chart-grid)" strokeWidth="1" />
               <text x={M.left - 6} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--color-text-muted)" fontFamily="var(--font-plex-mono)">
-                {nf.format(v)}s
+                {nf.format(v / 60)}m
               </text>
             </g>
           ))}
-          {points.map((p) => (
-            <text key={p.weekStart} x={weekX(p)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)" fontFamily="var(--font-plex-mono)">
-              {p.weekStart.slice(5)}
-            </text>
-          ))}
+          {points.map(
+            (p, i) =>
+              (i % labelEvery === 0 || i === points.length - 1) && (
+                <text key={p.weekStart} x={weekX(p)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--color-text-muted)" fontFamily="var(--font-plex-mono)">
+                  {formatDateShort(p.weekStart)}
+                </text>
+              ),
+          )}
 
           {annotations.map((e, i) => (
             <g key={e.event_id}>
@@ -110,7 +120,7 @@ export function CycleTrendChart({
                 fill="var(--color-status-warn)"
                 fontFamily="var(--font-plex-mono)"
               >
-                {e.event_type} {e.event_id}
+                {e.event_type.replace(/_/g, ' ')} {e.event_id}
               </text>
             </g>
           ))}
@@ -121,7 +131,7 @@ export function CycleTrendChart({
             (p) =>
               p.machineMedianSeconds !== null && (
                 <rect key={p.weekStart} x={weekX(p) - 2} y={y(p.machineMedianSeconds) - 2} width="4" height="4" fill="var(--color-series-1)">
-                  <title>{`${p.weekStart} · ${nf.format(p.machineMedianSeconds)}s median · ${nf.format(p.cycleCount)} cycles`}</title>
+                  <title>{`week of ${formatDate(p.weekStart)} · ${(p.machineMedianSeconds / 60).toFixed(1)} min median (${nf.format(p.machineMedianSeconds)}s) · ${nf.format(p.cycleCount)} cycles`}</title>
                 </rect>
               ),
           )}

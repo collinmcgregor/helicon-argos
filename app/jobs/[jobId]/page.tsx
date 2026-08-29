@@ -9,10 +9,19 @@ import { Panel } from '@/components/Panel';
 import { PlyBar } from '@/components/PlyBar';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TimelineRow } from '@/components/TimelineRow';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import {
+  EVENT_HORIZON_DISPLAY,
+  formatDate,
+  formatEntityId,
+  formatFacility,
+  formatJobId,
+  formatLabel,
+  formatLabelLower,
+  formatStamp,
+} from '@/lib/display';
 import type { StatusTone } from '@/lib/types';
 import { getJob, type JobEvent } from '@/lib/queries/jobs';
-import { money, shortStamp, STATUS_TONE } from '../format';
+import { money, STATUS_TONE } from '../format';
 
 function eventTone(e: JobEvent): StatusTone {
   switch (e.event_type) {
@@ -38,29 +47,29 @@ function eventSummary(e: JobEvent): string {
     case 'job_started':
       return 'production started';
     case 'tool_ready':
-      return `tool ${e.tool_id ?? '—'} ready`;
+      return `${e.tool_id ? formatEntityId(e.tool_id) : 'tool —'} ready`;
     case 'cycle_completed':
-      return `${e.machine_id ?? '—'} · ${e.tool_id ?? '—'} · qty ${e.quantity ?? 0} · ${e.cycle_time_seconds ?? '—'}s`;
+      return `${e.machine_id ? formatEntityId(e.machine_id) : '—'} · ${e.tool_id ? formatEntityId(e.tool_id) : '—'} · qty ${e.quantity ?? 0} · ${e.cycle_time_seconds ?? '—'}s`;
     case 'inspection_passed':
-      return `passed · qty ${e.quantity ?? 0} · ${e.inspector_id ?? '—'}`;
+      return `passed · qty ${e.quantity ?? 0} · ${e.inspector_id ? formatEntityId(e.inspector_id) : '—'}`;
     case 'inspection_failed':
-      return `failed · qty ${e.quantity ?? 0} · ${e.defect_code ?? 'no defect code'} · ${e.inspector_id ?? '—'}`;
+      return `failed · qty ${e.quantity ?? 0} · ${e.defect_code ? formatLabelLower(e.defect_code) : 'no defect code'} · ${e.inspector_id ? formatEntityId(e.inspector_id) : '—'}`;
     case 'material_lot_scan':
-      return `lot ${e.lot_id ?? '—'} scanned`;
+      return `${e.lot_id ? formatEntityId(e.lot_id) : 'lot —'} scanned`;
     case 'job_blocked':
-      return `blocked: ${e.reason ?? 'unspecified'}`;
+      return `blocked: ${e.reason ? formatLabelLower(e.reason) : 'unspecified'}`;
     case 'job_hold':
-      return `held: ${e.reason ?? 'unspecified'}`;
+      return `held: ${e.reason ? formatLabelLower(e.reason) : 'unspecified'}`;
     case 'job_unblocked':
       return 'unblocked';
     case 'job_completed':
       return `completed · good ${e.good_quantity ?? 0} · scrap ${e.scrap_quantity ?? 0}`;
     case 'shift_handoff':
-      return `shift handoff${e.operator_id ? ` · ${e.operator_id}` : ''}`;
+      return `shift handoff${e.operator_id ? ` · ${formatEntityId(e.operator_id)}` : ''}`;
     case 'maintenance_ping':
-      return `maintenance ping · ${e.machine_id ?? '—'}`;
+      return `maintenance ping · ${e.machine_id ? formatEntityId(e.machine_id) : '—'}`;
     case 'sensor_glitch':
-      return `sensor glitch${e.signal ? ` · ${e.signal}` : ''} · ${e.machine_id ?? '—'}`;
+      return `sensor glitch${e.signal ? ` · ${formatLabelLower(e.signal)}` : ''} · ${e.machine_id ? formatEntityId(e.machine_id) : '—'}`;
     default:
       return e.event_type;
   }
@@ -114,15 +123,19 @@ export default async function JobDetailPage({
           </span>
         }
       >
-        <span className="font-mono">{job.job_id}</span>
+        Job <span className="font-mono">{formatJobId(job.job_id)}</span>
       </PageTitle>
 
       <div className="flex flex-col gap-1 font-mono text-[12.5px] text-text-secondary">
         <span>
-          {job.customer_id} · {job.part_id} · {job.facility_id} · {job.material} · {job.priority}
+          {formatEntityId(job.customer_id)} · {formatEntityId(job.part_id)} ·{' '}
+          {formatFacility(job.facility_id)} · {formatLabel(job.material)} · {formatLabelLower(job.priority)}
         </span>
         <span>
-          due <span className={job.deliveryRisk === 'overdue' ? 'text-status-critical' : ''}>{job.due_date}</span>
+          due{' '}
+          <span className={job.deliveryRisk === 'overdue' ? 'text-status-critical' : ''}>
+            {formatDate(job.due_date)}
+          </span>
           {' '}· target {job.target_quantity}
           {job.has_completion && (
             <span>
@@ -139,7 +152,7 @@ export default async function JobDetailPage({
         <span className="text-[11px] text-text-muted" title="Cycle activity is production context, never completion progress">
           activity {job.cycleCount} cycles · {job.cycleQuantity} qty (not completion progress)
           {job.lifecycle_event_id && <span> · state evidence {job.lifecycle_event_id}</span>}
-          {' '}· horizon {EVENT_HORIZON_LABEL}
+          {' '}· as of {EVENT_HORIZON_DISPLAY}
         </span>
       </div>
 
@@ -163,7 +176,7 @@ export default async function JobDetailPage({
             {events.map((e) => (
               <TimelineRow
                 key={e.seq}
-                timestamp={shortStamp(e.timestamp)}
+                timestamp={formatStamp(e.timestamp)}
                 eventType={e.event_type}
                 eventId={e.event_id}
                 tone={eventTone(e)}
@@ -186,14 +199,14 @@ export default async function JobDetailPage({
                       href={`/machines/${m.machine_id}${forward}` as Route}
                       className="text-text-primary underline decoration-border underline-offset-2 transition-colors duration-100 hover:decoration-text-secondary"
                     >
-                      {m.machine_id}
+                      {formatEntityId(m.machine_id)}
                     </Link>
                     <span className="text-text-muted"> · {m.cycleCount} cycles</span>
                   </span>
                 ))}
                 {tools.map((t) => (
                   <span key={t} className="font-mono text-[12.5px] text-text-secondary">
-                    {t} <span className="text-text-muted">· tool</span>
+                    {formatEntityId(t)} <span className="text-text-muted">· tool</span>
                   </span>
                 ))}
                 <span className="text-[11px] text-text-muted">
@@ -218,10 +231,10 @@ export default async function JobDetailPage({
                   <MiniPareto items={inspections.defects.map((d) => ({ label: d.code, count: d.count }))} />
                 )}
                 <span className="font-mono text-[11px] text-text-muted">
-                  {inspections.inspectors.join(' · ')}
+                  {inspections.inspectors.map(formatEntityId).join(' · ')}
                 </span>
                 <span className="text-[11px] text-text-muted">
-                  In-process QC at stations qc_01/qc_02 — never attributed to production machines.
+                  In-process QC at stations QC 1/QC 2 — never attributed to production machines.
                 </span>
               </div>
             )}
@@ -234,8 +247,8 @@ export default async function JobDetailPage({
               <div className="flex flex-col gap-1.5">
                 {blocks.map((b) => (
                   <span key={b.event_id + b.timestamp} className="font-mono text-[12.5px] text-text-secondary">
-                    {shortStamp(b.timestamp)} · {b.event_type}
-                    {b.reason && <span> · {b.reason}</span>}
+                    {formatStamp(b.timestamp)} · {b.event_type}
+                    {b.reason && <span> · {formatLabelLower(b.reason)}</span>}
                     <span className="text-text-muted"> · {b.event_id}</span>
                   </span>
                 ))}
@@ -252,11 +265,11 @@ export default async function JobDetailPage({
             {lot ? (
               <div className="flex flex-col gap-2">
                 <span className="font-mono text-[12.5px] text-text-primary">
-                  {lot.lot_id}
-                  <span className="text-text-muted"> · {lot.material}</span>
+                  {formatEntityId(lot.lot_id)}
+                  <span className="text-text-muted"> · {formatLabel(lot.material)}</span>
                 </span>
                 <span className="font-mono text-[11px] text-text-muted">
-                  scanned {shortStamp(lot.scanned_at)} · {lot.event_id}
+                  scanned {formatStamp(lot.scanned_at)} · {lot.event_id}
                 </span>
                 <DerivedBadge
                   provenance="observed"

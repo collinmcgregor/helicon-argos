@@ -10,7 +10,17 @@ import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { SectionLabel } from '@/components/SectionLabel';
 import { StatusBadge } from '@/components/StatusBadge';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import {
+  EVENT_HORIZON_DAY,
+  EVENT_HORIZON_DISPLAY,
+  formatEntityId,
+  formatFacility,
+  formatJobId,
+  formatLabel,
+  formatMinutes,
+  formatStamp,
+  humanizeText,
+} from '@/lib/display';
 import { sql } from '@/lib/db';
 import type { FacilityId } from '@/lib/types';
 import {
@@ -64,7 +74,7 @@ export default async function OverviewPage({
       <PageTitle
         right={
           <span className="font-mono text-[11px] text-text-muted">
-            Factory state at {EVENT_HORIZON_LABEL}
+            Factory state at {EVENT_HORIZON_DISPLAY}
           </span>
         }
       >
@@ -75,7 +85,7 @@ export default async function OverviewPage({
         <KpiTile
           label="Active jobs"
           value={String(kpis.activeJobs)}
-          delta={`of ${kpis.totalJobs} jobs at horizon`}
+          delta={`of ${kpis.totalJobs} jobs total`}
           tone="info"
           href={`/jobs?status=active${facQs}`}
         />
@@ -89,7 +99,7 @@ export default async function OverviewPage({
         <KpiTile
           label="Overdue value"
           value={`$${fmt(kpis.overdueValue / 1000)}K`}
-          delta={`${kpis.overdueJobs} incomplete jobs · price coverage ${kpis.pricedJobs}/${kpis.totalJobs}`}
+          delta={`${kpis.overdueJobs} late jobs · price data for ${kpis.pricedJobs} of ${kpis.totalJobs}`}
           tone="critical"
           href={`/jobs?risk=overdue${facQs}`}
         />
@@ -118,7 +128,7 @@ export default async function OverviewPage({
         </Panel>
       </div>
 
-      <Panel label="Factory" count={facility ? facility : 'la_01 · la_02'}>
+      <Panel label="Factory" count={facility ? formatFacility(facility) : 'LA 1 · LA 2'}>
         <div className="flex flex-col gap-3">
           <div className={`grid gap-3 ${pulseShown.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {pulseShown.map((p) => (
@@ -129,10 +139,10 @@ export default async function OverviewPage({
               >
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-[13px] font-medium text-text-primary">
-                    {p.facility_id.replace('la_', 'LA-')}
+                    {formatFacility(p.facility_id)}
                   </span>
                   <span className="font-mono text-[11px] text-text-muted">
-                    latest {p.latestEventAt.slice(0, 16).replace('T', ' ')} · {p.latestEventId}
+                    latest {formatStamp(p.latestEventAt)} · {p.latestEventId}
                   </span>
                 </div>
                 <div className="mt-1 grid grid-cols-4 gap-2 font-mono text-[12.5px] text-text-secondary">
@@ -143,7 +153,7 @@ export default async function OverviewPage({
                 </div>
                 {p.topOverdueJobId && (
                   <div className="mt-1 font-mono text-[11px] text-text-muted">
-                    top overdue {p.topOverdueJobId}
+                    top overdue job {formatJobId(p.topOverdueJobId)}
                     {p.topOverdueValue != null && ` · $${fmt(p.topOverdueValue)}`}
                   </div>
                 )}
@@ -158,11 +168,11 @@ export default async function OverviewPage({
                 className="rounded-sm border border-border-faint px-2 py-1.5 transition-colors duration-100 hover:bg-bg-3"
               >
                 <div className="flex items-center justify-between gap-1">
-                  <span className="font-mono text-[12.5px] text-text-primary">{m.machine_id}</span>
+                  <span className="font-mono text-[12.5px] text-text-primary">{formatEntityId(m.machine_id)}</span>
                   <AngleGlyph tone={m.statusTone} />
                 </div>
                 <div className="mt-0.5 font-mono text-[11px] text-text-secondary">
-                  {fmt(m.medianCycleSeconds)}s med
+                  {formatMinutes(m.medianCycleSeconds)} med
                 </div>
                 <div className="mt-1">
                   <Sparkline values={m.weeklyMedians} stroke={TONE_COLOR[m.statusTone]} />
@@ -171,8 +181,8 @@ export default async function OverviewPage({
             ))}
           </div>
           <div className="font-mono text-[11px] text-text-muted">
-            recent activity = completed-cycle qty in the final 24h before {EVENT_HORIZON_LABEL} — not a
-            &quot;currently running&quot; signal
+            recent activity = completed-cycle qty in the final 24h before {EVENT_HORIZON_DISPLAY} — not
+            a &quot;currently running&quot; signal
             {facility && (
               <>
                 {' · '}
@@ -187,6 +197,10 @@ export default async function OverviewPage({
 
       <div className="grid grid-cols-[3fr_2fr] items-start gap-3">
         <Panel label="Needs attention" count={queue.length} padded={false}>
+          <div className="border-b border-border-faint px-4 py-2 text-[11px] text-text-muted">
+            What deserves an operations lead&apos;s attention right now — click a row to see the
+            evidence.
+          </div>
           {queue.length === 0 ? (
             <div className="p-4">
               <EmptyState
@@ -199,10 +213,10 @@ export default async function OverviewPage({
               <AlertRow
                 key={a.alert_id}
                 severity={a.severity}
-                title={a.title}
-                explanation={a.explanation}
-                impact={a.businessImpact}
-                ids={a.implicated_ids}
+                title={humanizeText(a.title)}
+                explanation={humanizeText(a.explanation)}
+                impact={humanizeText(a.businessImpact)}
+                ids={a.implicated_ids.map(formatEntityId)}
                 href={`/?alert=${a.alert_id}${facQs}`}
                 selected={a.alert_id === selected?.alert_id}
               />
@@ -215,22 +229,24 @@ export default async function OverviewPage({
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <StatusBadge tone={selected.severity} label={selected.severity} />
-                <span className="text-[13px] font-semibold text-text-primary">{selected.title}</span>
+                <span className="text-[13px] font-semibold text-text-primary">
+                  {humanizeText(selected.title)}
+                </span>
               </div>
-              <p className="text-[13px] text-text-secondary">{selected.explanation}</p>
+              <p className="text-[13px] text-text-secondary">{humanizeText(selected.explanation)}</p>
               <p className="text-[13px]" style={{ color: 'var(--color-accent-resin)' }}>
-                {selected.businessImpact}
+                {humanizeText(selected.businessImpact)}
               </p>
               <DerivedBadge
                 provenance={selected.provenance}
-                caveat="rule evaluated over derived views at the frozen horizon"
+                caveat="Calculated from job and machine history — the event IDs below are the source records"
               />
               <div>
                 <SectionLabel>Evidence</SectionLabel>
                 <ul className="mt-1 flex flex-col gap-1">
                   {selected.evidenceFacts.map((fact) => (
                     <li key={fact} className="font-mono text-[12.5px] text-text-secondary">
-                      {fact}
+                      {humanizeText(fact)}
                     </li>
                   ))}
                 </ul>
@@ -268,13 +284,16 @@ export default async function OverviewPage({
         headerRight={<DerivedBadge provenance="derived" caveat="generated from open alerts" />}
         padded={false}
       >
+        <div className="border-b border-border-faint px-4 py-2 text-[11px] text-text-muted">
+          What we&apos;d do about it — each derived from an alert above.
+        </div>
         {actions.map((action) => (
           <Link
             key={action.href}
             href={action.href as Route}
             className="flex items-center border-b border-border-faint px-4 py-2 text-[13px] text-text-secondary transition-colors duration-100 last:border-b-0 hover:bg-bg-3 hover:text-text-primary"
           >
-            {action.text}
+            {humanizeText(action.text)}
           </Link>
         ))}
       </Panel>
@@ -286,13 +305,13 @@ export default async function OverviewPage({
           single asset.
         </p>
         <MiniPareto
-          items={pareto.map((d) => ({ label: d.defect_code, count: d.failedInspections }))}
+          items={pareto.map((d) => ({ label: formatLabel(d.defect_code), count: d.failedInspections }))}
         />
       </Panel>
 
       <div className="pb-2 font-mono text-[11px] text-text-muted">
-        {fmt(provenance.totalEvents)} events · horizon {EVENT_HORIZON_LABEL} · la_01{' '}
-        {provenance.la01SharePct}% / la_02 {provenance.la02SharePct}% of activity · source:
+        Built from {fmt(provenance.totalEvents)} factory events through {EVENT_HORIZON_DAY} ·{' '}
+        {provenance.la01SharePct}% LA 1 / {provenance.la02SharePct}% LA 2 · source:
         manufacturing_events.jsonl
       </div>
     </div>

@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { sql } from '@/lib/db';
-import { EVENT_HORIZON_LABEL } from '@/lib/constants';
+import {
+  EVENT_HORIZON_DISPLAY,
+  formatDate,
+  formatEntityId,
+  formatFacility,
+  formatJobId,
+  formatLabelLower,
+  formatMinutes,
+  formatStamp,
+} from '@/lib/display';
 import type { FacilityId, StatusTone } from '@/lib/types';
 import { DerivedBadge } from '@/components/DerivedBadge';
 import { EmptyState } from '@/components/EmptyState';
@@ -60,11 +69,11 @@ export default async function MachineDetailPage({
   if (!machine) {
     return (
       <div className="flex max-w-6xl flex-col gap-3">
-        <PageTitle>{machineId}</PageTitle>
+        <PageTitle>{formatEntityId(machineId)}</PageTitle>
         <Panel>
           <EmptyState
-            message={`No production machine "${machineId}" — production presses are press_01 … press_06.`}
-            queryContext={`qc_01/qc_02 are QC stations, not machines · horizon ${EVENT_HORIZON_LABEL}`}
+            message={`No production machine "${machineId}" — production presses are Press 1 … Press 6.`}
+            queryContext={`QC 1/QC 2 are QC stations, not machines · as of ${EVENT_HORIZON_DISPLAY}`}
           />
           <div className="flex justify-center pb-2">
             <Link href="/machines" className="text-[13px] text-accent hover:underline">
@@ -87,13 +96,13 @@ export default async function MachineDetailPage({
 
   const headline = [
     machine.pctAboveFleet !== null
-      ? `${machine.pctAboveFleet}% above the ${nf.format(machine.fleetBandLowSeconds ?? 0)}–${nf.format(machine.fleetBandHighSeconds ?? 0)}s fleet band`
+      ? `runs ${machine.pctAboveFleet}% above the fleet's ${formatMinutes(machine.fleetBandLowSeconds ?? 0)}–${formatMinutes(machine.fleetBandHighSeconds ?? 0)} band`
       : null,
     machine.cycleTimeDriftPct !== null && machine.cycleTimeDriftPct > 1
-      ? `rising trend (+${machine.cycleTimeDriftPct}% first → second half)`
+      ? `cycle time up ${machine.cycleTimeDriftPct}% over the period`
       : null,
     machine.maintenanceCount === 0
-      ? 'no maintenance recorded'
+      ? 'no maintenance on record'
       : `${machine.maintenanceCount} maintenance event${machine.maintenanceCount === 1 ? '' : 's'}`,
   ].filter((s): s is string => s !== null);
 
@@ -106,33 +115,36 @@ export default async function MachineDetailPage({
         right={
           <div className="flex items-center gap-3">
             <StatusBadge tone={machine.statusTone} label={ALERT_LABEL[machine.statusTone]} />
-            <span className="font-mono text-[11px] text-text-muted">horizon {EVENT_HORIZON_LABEL}</span>
+            <span className="font-mono text-[11px] text-text-muted">as of {EVENT_HORIZON_DISPLAY}</span>
           </div>
         }
       >
-        {machine.machine_id}
+        {formatEntityId(machine.machine_id)}
       </PageTitle>
 
       <div className="flex flex-col gap-1">
         <span className="font-mono text-[12.5px] text-text-secondary">
-          {machine.facility_id} · {nf.format(machine.cycleCount)} cycles ·{' '}
-          {nf.format(machine.jobCount)} jobs · median{' '}
-          {median !== null ? `${nf.format(median)}s` : '—'}
+          {formatFacility(machine.facility_id)} · {nf.format(machine.cycleCount)} cycles ·{' '}
+          {nf.format(machine.jobCount)} jobs · median cycle{' '}
+          {median !== null ? formatMinutes(median) : '—'}
         </span>
         {headline.length > 0 && (
           <span className="text-[13px] text-text-secondary">{headline.join(' · ')}</span>
         )}
         {incident && (
           <span className="text-[13px] text-text-secondary">
-            <span className="text-status-warn">{String(incident.sensorEvent.metadata.signal ?? 'sensor')}</span>{' '}
-            sensor_glitch{' '}
+            A{' '}
+            <span className="text-status-warn">
+              {formatLabelLower(String(incident.sensorEvent.metadata.signal ?? 'sensor'))}
+            </span>{' '}
+            sensor glitch{' '}
             <span className="font-mono text-[12.5px]">{incident.sensorEvent.event_id}</span> (
-            {incident.sensorEvent.timestamp.slice(0, 10)}) and maintenance_ping{' '}
+            {formatDate(incident.sensorEvent.timestamp)}) and a maintenance ping{' '}
             <span className="font-mono text-[12.5px]">{incident.maintenanceEvent.event_id}</span> (
-            {incident.maintenanceEvent.timestamp.slice(0, 10)}) were followed by a weekly-median
-            spike {nf.format(incident.baselineMedianSeconds)}s →{' '}
-            {nf.format(incident.spikeMedianSeconds)}s, then recovery to{' '}
-            {nf.format(incident.recoveredMedianSeconds)}s. Sequence, not proven cause.
+            {formatDate(incident.maintenanceEvent.timestamp)}) were followed by a weekly-median
+            spike from {formatMinutes(incident.baselineMedianSeconds)} to{' '}
+            {formatMinutes(incident.spikeMedianSeconds)} per cycle, then recovery to{' '}
+            {formatMinutes(incident.recoveredMedianSeconds)}. Sequence, not proven cause.
           </span>
         )}
       </div>
@@ -173,7 +185,7 @@ export default async function MachineDetailPage({
             {evidence.map((e, i) => (
               <TimelineRow
                 key={`${e.event_id}-${i}`}
-                timestamp={e.timestamp.slice(0, 19).replace('T', ' ')}
+                timestamp={formatStamp(e.timestamp)}
                 eventType={e.event_type}
                 eventId={e.event_id}
                 tone={
@@ -187,9 +199,9 @@ export default async function MachineDetailPage({
                 }
               >
                 {e.event_type === 'cycle_completed'
-                  ? `${e.job_id} · qty ${e.metadata.quantity ?? '—'} · ${nf.format(Number(e.metadata.cycle_time_seconds))}s`
+                  ? `job ${formatJobId(e.job_id ?? '—')} · qty ${e.metadata.quantity ?? '—'} · ${nf.format(Number(e.metadata.cycle_time_seconds))}s`
                   : e.event_type === 'sensor_glitch'
-                    ? `${e.metadata.signal ?? 'sensor'} signal glitch`
+                    ? `${formatLabelLower(String(e.metadata.signal ?? 'sensor'))} signal glitch`
                     : 'maintenance ping'}
               </TimelineRow>
             ))}
@@ -222,16 +234,16 @@ export default async function MachineDetailPage({
                           href={`/jobs/${j.job_id}${facility ? `?facility=${facility}` : ''}` as Route}
                           className="text-accent hover:underline"
                         >
-                          {j.job_id}
+                          {formatJobId(j.job_id)}
                         </Link>
                       </Td>
                       <Td>
-                        <StatusBadge tone={STATUS_TONE[j.status] ?? 'info'} label={j.status} />
+                        <StatusBadge tone={STATUS_TONE[j.status] ?? 'info'} label={j.status.replace('_', ' ')} />
                       </Td>
                       <Td>
-                        <StatusBadge tone={RISK_TONE[j.deliveryRisk]} label={j.deliveryRisk} />
+                        <StatusBadge tone={RISK_TONE[j.deliveryRisk]} label={j.deliveryRisk.replace('_', ' ')} />
                       </Td>
-                      <Td mono className="whitespace-nowrap">{j.due_date.slice(0, 10) || '—'}</Td>
+                      <Td mono className="whitespace-nowrap">{j.due_date ? formatDate(j.due_date) : '—'}</Td>
                       <Td numeric>
                         {j.valueAtRisk !== null ? `$${nf.format(Math.round(j.valueAtRisk))}` : '—'}
                       </Td>

@@ -1,4 +1,5 @@
 import type { Sql } from 'postgres';
+import { formatDateShort, formatMinutes } from '@/lib/display';
 import type {
   AlertRule,
   DefectCode,
@@ -188,13 +189,13 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
       alert_id: 'ovw_press_03_cycle_time',
       rule: 'cycle_time_vs_baseline',
       severity: 'critical',
-      title: 'Slowing cycle time — press_03',
-      explanation: `${n(p3.median)}s median; ${pctAbove}% above the ${n(p3.fleet_median)}s fleet median; drifting +${p3.drift_pct}%; no maintenance recorded (${p3.maintenance} events).`,
-      businessImpact: `~${pctAbove}% capacity loss on 1 of 6 presses; ${p3.open_jobs} open jobs routed here at risk`,
+      title: 'Press 3 is slowing down',
+      explanation: `Press 3 is running about ${pctAbove}% slower than the rest of the fleet and still slowing — with no maintenance on record. Typical cycle: ${formatMinutes(p3.median)} vs ${formatMinutes(p3.fleet_median)} fleet median.`,
+      businessImpact: `About ${pctAbove}% of capacity lost on 1 of 6 presses — ${p3.open_jobs} open jobs are routed here`,
       evidenceFacts: [
-        `median ${n(p3.median)}s vs fleet ${n(p3.fleet_median)}s (+${pctAbove}%)`,
-        `first→second half drift +${p3.drift_pct}%`,
-        `${p3.maintenance} maintenance events recorded`,
+        `Typical cycle ${formatMinutes(p3.median)} (${n(p3.median)}s) vs fleet ${formatMinutes(p3.fleet_median)} (+${pctAbove}%)`,
+        `Cycle time up ${p3.drift_pct}% over the period`,
+        `${p3.maintenance} maintenance events on record`,
       ],
       implicated_ids: ['press_03'],
       supporting_event_ids: p3.slow_events ?? [],
@@ -231,13 +232,13 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
       alert_id: 'ovw_overdue_incomplete',
       rule: 'overdue_incomplete',
       severity: 'critical',
-      title: 'Overdue incomplete work',
-      explanation: `${od.jobs} jobs past their target due date at the frozen horizon and not completed.`,
-      businessImpact: `$${n(od.value)} estimated order value late across ${od.customers} customers — $ over ${od.priced} of ${od.jobs} jobs with price data`,
+      title: 'Jobs past their delivery date',
+      explanation: `${od.jobs} jobs are past their promised delivery date and still unfinished — about $${n(od.value)} of orders are late.`,
+      businessImpact: `$${n(od.value)} of late orders across ${od.customers} customers (price data covers ${od.priced} of ${od.jobs} late jobs)`,
       evidenceFacts: [
-        `$${n(od.value)} at risk over ${od.priced} of ${od.jobs} priced jobs (coverage 150/312)`,
-        `${od.customers} distinct customers affected`,
-        `largest: ${od.top_job ?? '—'} at $${od.top_value == null ? '—' : n(od.top_value)}`,
+        `$${n(od.value)} late over ${od.priced} of ${od.jobs} priced jobs (price data covers 150 of 312 jobs overall)`,
+        `${od.customers} customers are affected`,
+        `Biggest late order: ${od.top_job ?? '—'} at $${od.top_value == null ? '—' : n(od.top_value)}`,
       ],
       implicated_ids: [od.top_job ?? 'jobs_current'],
       supporting_event_ids: od.event_ids ?? [],
@@ -276,13 +277,13 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
       alert_id: 'ovw_missing_tool',
       rule: 'blocked_or_held',
       severity: 'warn',
-      title: 'Tooling constraint',
-      explanation: `missing_tool cited in ${bl.missing_tool} of ${bl.total_blocks} block events; ${bl.blocked_held} jobs currently blocked/held.`,
-      businessImpact: `$${n(bl.value)} estimated order value stranded ($ over ${bl.priced} of ${bl.blocked_held} jobs with price data); leading single cause of stranded work`,
+      title: 'Missing tools are stalling work',
+      explanation: `Missing tools are the top reason work gets stuck: cited in ${bl.missing_tool} of ${bl.total_blocks} stoppages, and ${bl.blocked_held} jobs are stuck right now.`,
+      businessImpact: `About $${n(bl.value)} of orders waiting (price data covers ${bl.priced} of ${bl.blocked_held} stuck jobs) — the leading single cause of stranded work`,
       evidenceFacts: [
-        `${bl.missing_tool} of ${bl.total_blocks} job_blocked events cite missing_tool`,
-        `${bl.blocked_held} jobs currently blocked or held`,
-        `$${n(bl.value)} estimated value over ${bl.priced} of ${bl.blocked_held} priced jobs`,
+        `${bl.missing_tool} of ${bl.total_blocks} block events cite a missing tool`,
+        `${bl.blocked_held} jobs are blocked or held right now`,
+        `About $${n(bl.value)} of orders waiting, over ${bl.priced} of ${bl.blocked_held} priced jobs`,
       ],
       implicated_ids: (bl.job_ids ?? []).slice(0, 3),
       supporting_event_ids: bl.event_ids ?? [],
@@ -332,13 +333,13 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
       alert_id: 'ovw_press_06_incident',
       rule: 'recovered_incident',
       severity: 'info',
-      title: 'Recovered asset incident — press_06',
-      explanation: `${p6.signal ?? 'sensor'} sensor_glitch (${day(p6.glitch_at)}) then maintenance_ping (${day(p6.ping_at)}) preceded a spike week — weekly median ${n(p6.spike_median)}s vs ${n(p6.overall_median)}s overall; recovered.`,
-      businessImpact: 'recovered; validates sensor→throughput correlation',
+      title: 'Press 6 incident — recovered',
+      explanation: `Press 6 briefly slowed after a ${(p6.signal ?? 'sensor').replace(/_/g, ' ')} sensor warning (${formatDateShort(p6.glitch_at)}) and a maintenance ping (${formatDateShort(p6.ping_at)}) — the spike week ran ${formatMinutes(p6.spike_median)} per cycle vs ${formatMinutes(p6.overall_median)} overall; it has since recovered.`,
+      businessImpact: 'Recovered — evidence that sensor warnings precede throughput dips',
       evidenceFacts: [
-        `${p6.signal ?? 'sensor'} sensor_glitch ${p6.glitch_id} on ${day(p6.glitch_at)}`,
-        `maintenance_ping ${p6.ping_id} on ${day(p6.ping_at)}`,
-        `spike-week median ${n(p6.spike_median)}s vs ${n(p6.overall_median)}s overall, then recovered`,
+        `${(p6.signal ?? 'sensor').replace(/_/g, ' ')} sensor glitch ${p6.glitch_id} on ${formatDateShort(p6.glitch_at)}`,
+        `Maintenance ping ${p6.ping_id} on ${formatDateShort(p6.ping_at)}`,
+        `Spike-week cycles ran ${formatMinutes(p6.spike_median)} vs ${formatMinutes(p6.overall_median)} overall, then recovered`,
       ],
       implicated_ids: ['press_06'],
       supporting_event_ids: [p6.glitch_id, p6.ping_id],
@@ -510,25 +511,25 @@ export function deriveRecommendedActions(
   const p3 = queue.find((a) => a.alert_id === 'ovw_press_03_cycle_time');
   if (p3)
     actions.push({
-      text: `Schedule inspection of press_03 — cycle time ${p3.metrics.pctAboveFleet}% above fleet and rising, no maintenance on record`,
+      text: `Schedule an inspection of Press 3 — it runs ${p3.metrics.pctAboveFleet}% slower than the fleet, is still slowing, and has no maintenance on record`,
       href: p3.href,
     });
   const od = queue.find((a) => a.alert_id === 'ovw_overdue_incomplete');
   if (od)
     actions.push({
-      text: `Expedite or re-commit ${od.metrics.overdueJobs} overdue jobs ($${n(od.metrics.overdueValue)}) — start with highest-value customers`,
+      text: `Expedite or re-commit the ${od.metrics.overdueJobs} late jobs ($${n(od.metrics.overdueValue)}) — start with the highest-value customers`,
       href: od.href,
     });
   const bl = queue.find((a) => a.alert_id === 'ovw_missing_tool');
   if (bl)
     actions.push({
-      text: `Source missing tooling — ${bl.metrics.missingToolBlocks} of ${bl.metrics.totalBlocks} blocks cite missing_tool; ${bl.metrics.blockedHeldJobs} jobs stranded now`,
+      text: `Source the missing tools — ${bl.metrics.missingToolBlocks} of ${bl.metrics.totalBlocks} stoppages cite one, and ${bl.metrics.blockedHeldJobs} jobs are stuck now`,
       href: bl.href,
     });
   const voids = pareto.find((d) => d.defect_code === 'voids');
   if (voids)
     actions.push({
-      text: `Investigate shared cure/vacuum/debulk process — voids lead defects (${n(voids.failedInspections)}) in all ${voids.materialsWhereTop} materials`,
+      text: `Investigate the shared cure/vacuum/debulk process — voids lead the defect counts (${n(voids.failedInspections)} failures) in all ${voids.materialsWhereTop} materials`,
       href: '/alerts',
     });
   return actions;

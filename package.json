@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "validate": "psql \"${DATABASE_URL:-$(grep -E '^DATABASE_URL=' .env.local | cut -d= -f2-)}\" -v ON_ERROR_STOP=1 -f scripts/validate.sql"
   },
   "dependencies": {
     "next": "16.3.3",

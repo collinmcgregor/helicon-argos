@@ -33,6 +33,12 @@ This file is the project's committed home for project-intrinsic agent knowledge:
 - The shell (NavRail/TopBar) keeps `?facility=` in the URL and forwards it on nav links;
   page queries must honor it. `tests/smoke/routes.test.ts` is append-only per task —
   add your section under your marked heading, never edit others'.
+- Theming (retheme): light "paper/bone" is the default; dark overrides live under
+  `:root[data-theme='dark']` in `app/globals.css` — any new color token must be defined in
+  BOTH blocks (both hold ≥4.5:1 AA for text on bg-0..3; keep it that way). The attribute is
+  set pre-paint by the inline script in `app/layout.tsx` (`argos-theme` in localStorage);
+  `components/ThemeToggle.tsx` holds no theme state — its active segment is styled from
+  `html[data-theme]` in globals.css. Never hardcode a hex in components; use `--color-*`.
 
 ## Page queries & tests (W1)
 

@@ -144,6 +144,89 @@ describe('w1-jobs routes', () => {
 // ---------------------------------------------------------------------------
 // W1-machines · routes: /machines/:machineId, /alerts            (append here)
 // ---------------------------------------------------------------------------
+import { beforeAll, afterAll } from 'vitest';
+import { spawn, type ChildProcess } from 'node:child_process';
+
+describe('w1-machines routes', () => {
+  // No deployed URL yet, so this section boots its own dev server on a
+  // task-unique port; SMOKE_BASE_URL (Wave 2) takes over when set.
+  const PORT = 3907;
+  const base = process.env.SMOKE_BASE_URL ?? `http://localhost:${PORT}`;
+  const ownServer = !process.env.SMOKE_BASE_URL;
+  let server: ChildProcess | undefined;
+
+  beforeAll(async () => {
+    if (!ownServer) return;
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => k !== 'NODE_ENV' && k !== 'VITEST'),
+    ) as NodeJS.ProcessEnv;
+    server = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
+      env,
+      stdio: 'ignore',
+      detached: true,
+    });
+    const deadline = Date.now() + 150_000;
+    for (const path of ['/machines/press_03', '/machines/press_06', '/machines', '/alerts']) {
+      for (;;) {
+        try {
+          if ((await fetch(base + path)).status === 200) break;
+        } catch {
+          // server not accepting connections yet
+        }
+        if (Date.now() > deadline) throw new Error(`dev server never served ${path}`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  }, 180_000);
+
+  afterAll(() => {
+    if (!server?.pid) return;
+    try {
+      process.kill(-server.pid, 'SIGKILL');
+    } catch {
+      server.kill('SIGKILL');
+    }
+  });
+
+  const page = async (path: string) => {
+    const res = await fetch(base + path);
+    expect(res.status).toBe(200);
+    return res.text();
+  };
+
+  it('/machines/press_03 shows the degradation headline and derived attribution', async () => {
+    const html = await page('/machines/press_03');
+    expect(html).toContain('press_03');
+    expect(html).toContain('1,294');
+    expect(html).toContain('25% above');
+    expect(html).toContain('no maintenance recorded');
+    expect(html).toContain('Job → Cycle association');
+    expect(html.toLowerCase()).toContain('derived');
+  });
+
+  it('/machines/press_06 annotates the incident as sequence, never cause', async () => {
+    const html = await page('/machines/press_06');
+    expect(html).toContain('evt_010715');
+    expect(html).toContain('evt_011175');
+    expect(html).toContain('followed by');
+    expect(html).toContain('1,810');
+    expect(html.toLowerCase()).not.toContain('caused');
+  });
+
+  it('/machines lists the six presses', async () => {
+    const html = await page('/machines');
+    expect(html).toContain('press_01');
+    expect(html).toContain('press_06');
+  });
+
+  it('/alerts renders the derived findings with evidence ids', async () => {
+    const html = await page('/alerts');
+    expect(html).toContain('press_03');
+    expect(html).toContain('26 jobs');
+    expect(html).toContain('Recovered incident — press_06');
+    expect(html).toContain('evt_010715');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // W1-admin · routes: /admin/ontology            (append here)

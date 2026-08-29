@@ -17,14 +17,14 @@ export const sql =
   postgres(databaseUrl, {
     ssl: 'require',
     prepare: false, // transaction-mode pooler compatibility
-    // Small transaction-pooled concurrency: enough for the overview's independent
-    // queries to return promptly, without exhausting Supabase under warm functions.
-    max: 3,
+    // Overview queries are independent; allow one request to render promptly.
+    max: 5,
     // serverless hygiene: fail fast on a wedged connect instead of hanging the
     // render, and never reuse a connection that outlived a frozen lambda
     connect_timeout: 10,
-    idle_timeout: 20,
-    max_lifetime: 300,
+    // Do not let warm serverless functions hold the small Supabase session pool.
+    idle_timeout: 1,
+    max_lifetime: 60,
   });
 
 globalForDb.__argosSql = sql;

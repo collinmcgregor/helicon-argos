@@ -164,8 +164,12 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
       select percentile_cont(0.5) within group (order by cycle_time_seconds) as median
       from cycles where machine_id = 'press_03' ${fac}),
     fleet as (
-      select percentile_cont(0.5) within group (order by cycle_time_seconds) as median
-      from cycles where machine_id like 'press_%' and machine_id <> 'press_03' ${fac})
+      -- median of the other presses' per-press medians: the same fleet baseline
+      -- machine detail uses, so both surfaces state one "% above fleet" figure
+      select percentile_cont(0.5) within group (order by m) as median
+      from (select percentile_cont(0.5) within group (order by cycle_time_seconds) as m
+            from cycles where machine_id like 'press_%' and machine_id <> 'press_03' ${fac}
+            group by machine_id) per)
     select round(mine.median)::int as median,
            round(fleet.median)::int as fleet_median,
            (select drift_pct from machine_stats where machine_id = 'press_03')::float8 as drift_pct,
@@ -178,7 +182,8 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
               order by cycle_time_seconds desc limit 5) s) as slow_events
     from mine, fleet`;
   if (p3 && p3.median > p3.fleet_median * 1.15) {
-    const pctAbove = Math.round((p3.median / p3.fleet_median - 1) * 100);
+    // floor to match machine detail's "at least N% above fleet" claim (25%)
+    const pctAbove = Math.floor((p3.median / p3.fleet_median - 1) * 100);
     queue.push({
       alert_id: 'ovw_press_03_cycle_time',
       rule: 'cycle_time_vs_baseline',
@@ -306,10 +311,13 @@ export async function getNeedsAttention(sql: Sql, facility?: FacilityId): Promis
   >`
     select g.event_id as glitch_id, g.timestamp as glitch_at, g.signal,
            p.event_id as ping_id, p.timestamp as ping_at,
-           (select max(med) from (
-              select round(percentile_cont(0.5) within group (order by cycle_time_seconds))::int as med
+           -- same day-boundary spike window machine detail uses (ping +7d..+14d),
+           -- so every surface states the one verified 1,810s figure
+           (select round(percentile_cont(0.5) within group (order by cycle_time_seconds))::int
               from cycles where machine_id = 'press_06' ${fac}
-              group by date_trunc('week', timestamp)) w)::int as spike_median,
+                and timestamp >= date_trunc('day', p.timestamp) + interval '7 days'
+                and timestamp <  date_trunc('day', p.timestamp) + interval '14 days')
+             as spike_median,
            (select round(percentile_cont(0.5) within group (order by cycle_time_seconds))::int
               from cycles where machine_id = 'press_06' ${fac}) as overall_median
     from events g

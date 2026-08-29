@@ -1,127 +1,71 @@
 # Helicon Argos (v0.0)
 
-This is a digital twin for composite manufacturing to drastically accelerate factory operations and diagnose/fix any issues that arise
+An exception console for composite manufacturing, built from a 19,519-event
+production log. Argos turns the raw event stream into connected current-state
+objects (jobs, cycles, inspections, machines, alerts) and one investigation
+workflow:
 
-## Product purpose - to answer these questions and fix these problems:
+> **Needs-attention queue → alert evidence → job / machine detail → affected work**
 
-- Which jobs are active, blocked, late, or likely to miss their due date?
-- Which machines, tools, materials, or defects are associated with quality and throughput risk?
-- If an asset or material is suspect, which jobs, parts, and customers are affected?
-- What is the evidence behind an operational alert, and what should happen next?
+Every derived number on every screen drills down to raw `event_id`s, and every
+derived relationship is badged as such — source truth is never overwritten.
 
-## Ontology
+## The five findings the console surfaces (all computed, none hand-written)
 
-`Event` is the immutable source record:
+1. **Quality is systemic, not asset-local** — the 46% in-process inspection fail
+   rate is flat across all presses, tools, materials, facilities, and weeks;
+   `voids` leads defects in all 8 materials → look at the shared cure/vacuum/
+   debulk step, not a machine.
+2. **press_03 is silently degrading** — median cycle 1,294s, 25% above fleet and
+   rising, with zero maintenance on record.
+3. **$590K of order value is late** — 26 overdue incomplete jobs (price coverage
+   disclosed: 150/312 jobs carry estimates).
+4. **Work is stranded on tooling** — `missing_tool` causes 28 of 68 blocks; 9
+   jobs are blocked/held right now.
+5. **Traceability works end to end** — `job_0152` is blocked *and* lot-scanned:
+   alert → timeline → `lot_6626` → material → customer (honest caveat: 14/312
+   jobs have lot scans).
 
-| Field | Role |
-| --- | --- |
-| `event_id`, `timestamp`, `event_type` | event identity, occurrence time, and classification |
-| `job_id`, `part_id`, `customer_id` | work-order, product, and customer relationships |
-| `machine_id`, `metadata.tool_id` | asset relationships |
-| `material`, `metadata.lot_id` | material traceability |
-| `quantity`, cycle/inspection/completion metadata | operational measurements and outcomes |
-| `metadata.facility`, people IDs, reason, signal | location, responsibility, explanations, and evidence |
+## Stack
 
-### Core objects
+Next.js (App Router, TS, Tailwind v4) · Supabase Postgres · Vercel.
+No auth system — a password gate in `middleware.ts` (`APP_PASSWORD`), per the
+brief's "basic auth password" requirement. The signed-in demo user is an admin.
 
-| Object | Key properties | Primary relationships |
-| --- | --- | --- |
-| `Job` | status, due date, priority, target/good/scrap quantity, delivery risk | customer, part, facility, cycles, inspections, issues |
-| `ProductionCycle` | occurred at, quantity, duration | job, machine, tool, material, lot, operator |
-| `Inspection` | result, defect code, occurred at | job/cycle, inspector, issue |
-| `Machine` | facility, utilization, throughput, quality metrics | cycles, tools, machine events, issues |
-| `Tool` | performance and quality metrics | cycles, machines, issues |
-| `Material` / `MaterialLot` | material name, lot ID | jobs and cycles |
-| `Part`, `Customer`, `Facility`, `Person` | identifiers and aggregate metrics | jobs, activity, assets |
-| `OperationalIssue` | type, reason, severity, state, evidence | affected jobs, machines, tools |
+The clock is frozen to the event horizon (`2026-08-13T23:06:33Z`,
+`lib/constants.ts` / `frozen_now()` in SQL) so "overdue" stays meaningful on a
+historical dataset.
 
-```text
-Customer → Job → Part
-                 ├→ Production Cycle → Machine / Tool / Material / Lot
-                 ├→ Inspection → Defect / Operational Issue
-                 └→ Facility
+## Run it locally
 
-Machine or sensor event → Operational Issue → affected jobs, machines, tools
+```bash
+cp .env.example .env.local   # fill in DATABASE_URL, SUPABASE_*, APP_PASSWORD
+npm install
+npm run ingest               # one command: schema + bulk \copy load + derived views
+npm run validate             # 18 hard asserts: counts, $590,465, press_03, QC guard
+npm run dev
 ```
 
-### Derived state
+`npm run check` = validate + vitest (query + smoke layers) + `next build` —
+the ship gate used throughout the build.
 
-The ingestion layer materializes current objects and derived metrics from events:
+## Repo tour
 
-- job lifecycle and current status
-- completed, good, and scrap quantity; yield
-- inspection pass/fail and defect-rate rollups
-- throughput and cycle-time baselines by asset/material/part
-- due-date risk, blocked/held work, and revenue at risk
-- traceability from an anomalous tool, machine, or material lot to affected jobs
+```
+supabase/schema.sql       tables + derived views (jobs_current, cycles, machine_stats, alerts…)
+scripts/ingest.sh         repeatable JSONL → Postgres bulk load
+scripts/validate.sql      layer-1 data gates (run: npm run validate)
+lib/queries/*.ts          the only code that touches SQL; typed domain results
+app/                      overview · jobs explorer · job detail · machine detail · alerts · /admin/ontology
+components/               "Laminate" kit: panels, badges, ply bars, timeline, tiles
+docs/                     product plan, design system, data contract, per-page specs
+tests/                    query-layer exact-value tests + route smoke tests
+```
 
-## Primary workflow
+`/admin/ontology` edits versioned semantic configuration (objects, fields,
+relationships with observed/derived/external provenance) and renders the
+read-only ontology map from it — configuration changes never touch source
+events.
 
-**Signal → investigation → affected work → recommended action.**
-
-An operator sees a quality or delivery-risk alert, opens its evidence, traverses to the implicated machine/tool/material and affected jobs, and records/acknowledges the issue. This produces a shared operational queue rather than another passive dashboard.
-
-## Feature plan
-
-### P0 — build first (time-boxed MVP)
-
-1. **Repeatable event ingestion and ontology materialization**
-   - Parse JSONL into analytical tables and derived job, cycle, inspection, and asset summaries.
-   - Preserve raw events as drill-down evidence.
-
-2. **Operations overview**
-   - Active, blocked, completed, and delivery-risk jobs.
-   - Throughput, quality/yield, and inspection-failure trends.
-   - A ranked “needs attention” queue.
-
-3. **Job explorer and timeline**
-   - Filter/sort jobs by facility, customer, status, priority, due date, material, and risk.
-   - Show lifecycle history, quantities, linked assets, inspections, and blockers for a selected job.
-
-4. **Asset-quality investigation**
-   - Rank machines/tools by cycle-time deviation and inspection failures.
-   - Link a suspect asset to its evidence and affected jobs.
-
-5. **Simple explainable alerts**
-   - Near/overdue unfinished job.
-   - Blocked or held job.
-   - Unusually high inspection failure rate or cycle duration relative to historical baseline.
-   - Machine/sensor/maintenance event followed by relevant quality or throughput degradation.
-
-6. **Delivery essentials**
-   - Basic-auth-protected deployed app, concise README, reproducible local setup, and committed source history.
-
-### P1 — if time remains
-
-- Impact / “blast radius” traversal for a material lot, tool, or machine.
-- An issue detail view with acknowledgement, owner, notes, and resolution state.
-- Shift-handoff summary of changed conditions, open risks, and priorities.
-- Exportable filtered reports and deep links into a job/asset investigation.
-- Customer and facility drill-down pages.
-
-### P2 — backlog
-
-- Better due-date forecasting based on remaining work, yield, queues, and capacity.
-- Statistical anomaly detection with configurable thresholds and seasonality.
-- Root-cause comparison workspace: before/after a quality or throughput change.
-- Capacity simulation and what-if schedule reallocation.
-- Real-time event ingestion and notifications.
-- Role-based access, alert routing, comments, audit trail, and integrations with MES/ERP/CMMS systems.
-- Material genealogy and formal quality-containment / recall workflow.
-
-## Proposed technical approach
-
-- **Data/model:** a repeatable JSONL-to-Postgres ingestion script and materialized ontology tables in Supabase.
-- **App/API:** Next.js route handlers and server components querying Supabase Postgres.
-- **UI:** Next.js/React, TypeScript, Tailwind, TanStack Table, and Recharts.
-- **Auth/deployment:** Supabase Auth for sign-in and Vercel for deployment; use Vercel protection or a simple password gate if literal HTTP Basic Auth is required.
-
-This split keeps the demo fast and reproducible: the raw log remains auditable, while the UI queries product-level objects rather than scanning JSONL in the browser.
-
-## Implementation sequence
-
-1. Profile event types and create the reproducible ingestion/model layer.
-2. Define summary tables and alert rules, validating them against raw events.
-3. Build the overview and job explorer.
-4. Add the asset-quality investigation and evidence drill-down.
-5. Polish the primary workflow, add basic auth, deploy, and document the result.
+An independent audit recomputed every headline number straight from the JSONL
+(no shared code with the SQL layer) and matched the UI exactly, 0 mismatches.

@@ -90,7 +90,7 @@ export default async function MachineDetailPage({
       ? `${machine.pctAboveFleet}% above the ${nf.format(machine.fleetBandLowSeconds ?? 0)}–${nf.format(machine.fleetBandHighSeconds ?? 0)}s fleet band`
       : null,
     machine.cycleTimeDriftPct !== null && machine.cycleTimeDriftPct > 1
-      ? `rising trend (+${Math.round(machine.cycleTimeDriftPct)}% first → second half)`
+      ? `rising trend (+${machine.cycleTimeDriftPct}% first → second half)`
       : null,
     machine.maintenanceCount === 0
       ? 'no maintenance recorded'

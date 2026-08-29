@@ -49,7 +49,7 @@ describe('needs-attention queue', () => {
     const [press03, overdue, tooling, press06] = q;
     expect(press03.implicated_ids).toContain('press_03');
     expect(press03.explanation).toContain('1,294');
-    expect(press03.explanation).toContain('28%'); // computed vs 1,011s fleet median
+    expect(press03.explanation).toContain('25%'); // floored vs 1,029s median-of-press-medians (matches machine detail)
     expect(press03.explanation).toMatch(/no maintenance/i);
 
     expect(overdue.explanation).toContain('26');
@@ -65,7 +65,7 @@ describe('needs-attention queue', () => {
     expect(press06.implicated_ids).toContain('press_06');
     expect(press06.supporting_event_ids).toContain('evt_010715'); // Jul 24 sensor_glitch
     expect(press06.supporting_event_ids).toContain('evt_011175'); // Jul 25 maintenance_ping
-    expect(press06.explanation).toContain('1,786'); // computed spike-week median
+    expect(press06.explanation).toContain('1,810'); // ping+7d..14d spike window (matches machine detail)
   });
 
   it('every alert is derived, drillable, and inside the frozen horizon', async () => {

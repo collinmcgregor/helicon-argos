@@ -39,7 +39,7 @@ JSONL Event
 | Overdue | target due date is before frozen now and job is not completed | Estimated order value must disclose unit-price coverage. |
 | Completion outcome | `good_quantity` and `scrap_quantity` from completion event | Authoritative outcome when available. |
 | Production activity | cycle count and sum of `cycle_completed.quantity` | Never label this as completion progress; 237 completed jobs have cycle total ≠ target. |
-| In-process inspection failure | failed inspection quantity / all inspected quantity | Not final yield; inspections happen at QC stations. |
+| In-process inspection failure | failed inspection events / all inspection events (the displayed 46%) | Not final yield; inspections happen at QC stations. The quantity-weighted reject rate is a different, also-valid figure (~8.8%, ≈ completion scrap share); do not mix the two. |
 | Machine quality attribution | job → cycle association joined to job inspections | Always show `DERIVED`; never treat `qc_01`/`qc_02` as production machines. |
 | Recent facility activity | completed-cycle quantity in final 24 hours before frozen now | It is not a “currently running” signal. |
 

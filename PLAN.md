@@ -181,21 +181,46 @@ Each alert must include: rule name, severity/priority, a human-readable explanat
 - Role-based access, audit logs, comments, and alert routing.
 - Complete material genealogy / recall workflow, contingent on richer lot data.
 
-## Recommended implementation architecture
+## Chosen implementation architecture
 
 ```text
 manufacturing_events.jsonl
           ↓
-Python ingestion / transformation
+TypeScript or Python ingestion / transformation
           ↓
-DuckDB: raw events + materialized ontology tables
+Supabase Postgres: raw events + materialized ontology tables
           ↓
-FastAPI: jobs, assets, alerts, evidence APIs
+Next.js server components / route handlers
           ↓
 Next.js / React UI
           ↓
-Basic-auth-protected deployment
+Supabase Auth + Vercel deployment
 ```
+
+### Why this choice
+
+Use Supabase rather than DuckDB as the deployed application database. The dataset is small (19,519 events), relational, and stable enough that Postgres is more than sufficient. Supabase removes the need to separately build hosted persistence and a login/session system; Vercel makes Next.js deployment and environment-variable management straightforward.
+
+DuckDB is excellent for local exploration, but it adds a second data system without giving the MVP a user-facing benefit. It is optional for ad hoc analysis only, not part of the deployed path.
+
+### Supabase responsibilities
+
+- **Postgres:** tables for raw events and materialized ontology objects/summary views.
+- **Auth:** email/password sign-in with a seeded or manually created demo user for the reviewer.
+- **Row Level Security:** for v0.0, authenticated users may read operational data; no anonymous data access. Add stricter organization/user scoping only when multi-tenant requirements exist.
+- **Migrations/seeds:** commit schema migrations and a repeatable JSONL ingestion command; never commit Supabase secrets.
+
+### Vercel responsibilities
+
+- Deploy the Next.js app from the `main` branch.
+- Store Supabase URL/key and any app-password secrets as deployment environment variables.
+- Provide the public deployed URL.
+
+### Authentication decision
+
+The product login should be a polished Supabase email/password sign-in screen. Create one reviewer account and provide its credentials with the submission.
+
+The take-home also explicitly requests a “basic auth password.” Confirm whether the evaluator means literal HTTP Basic Auth. If it does, enable Vercel deployment protection or add a minimal server-side password gate in front of Supabase login. Do not place that password in client-side code or the repository.
 
 Suggested UI libraries: Tailwind CSS, TanStack Table, Recharts. Prioritize simple, well-labeled interaction over complex visual effects.
 

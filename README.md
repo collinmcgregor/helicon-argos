@@ -121,10 +121,10 @@ An operator sees a quality or delivery-risk alert, opens its evidence, traverses
 
 ## Proposed technical approach
 
-- **Data/model:** Python ingestion plus DuckDB for fast local analytical queries and materialized ontology tables.
-- **API:** FastAPI endpoints for jobs, assets, alerts, timelines, and graph-style relationships.
+- **Data/model:** a repeatable JSONL-to-Postgres ingestion script and materialized ontology tables in Supabase.
+- **App/API:** Next.js route handlers and server components querying Supabase Postgres.
 - **UI:** Next.js/React, TypeScript, Tailwind, TanStack Table, and Recharts.
-- **Deployment:** a small cloud deployment with basic-auth middleware; exact host selected during implementation.
+- **Auth/deployment:** Supabase Auth for sign-in and Vercel for deployment; use Vercel protection or a simple password gate if literal HTTP Basic Auth is required.
 
 This split keeps the demo fast and reproducible: the raw log remains auditable, while the UI queries product-level objects rather than scanning JSONL in the browser.
 

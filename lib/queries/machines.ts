@@ -140,6 +140,47 @@ export async function getMachine(sql: Db, machineId: string): Promise<MachineDet
   };
 }
 
+export async function listMachines(sql: Db): Promise<Machine[]> {
+  const rows = await sql<
+    {
+      machine_id: string;
+      median: number | null;
+      fleet_median: number | null;
+      cycle_count: number;
+      maintenance_count: number;
+      sensor_glitch_count: number;
+      drift_pct: number | null;
+      facility: string;
+      last_event_at: Date | null;
+    }[]
+  >`
+    SELECT m.machine_id, round(m.median_cycle_seconds)::int AS median,
+           f.fleet_median::float8 AS fleet_median,
+           m.cycle_count::int AS cycle_count,
+           m.maintenance_count::int AS maintenance_count,
+           m.sensor_glitch_count::int AS sensor_glitch_count,
+           m.drift_pct::float8 AS drift_pct,
+           (SELECT facility FROM cycles c WHERE c.machine_id = m.machine_id
+            GROUP BY facility ORDER BY count(*) DESC LIMIT 1) AS facility,
+           (SELECT max(timestamp) FROM events e WHERE e.machine_id = m.machine_id) AS last_event_at
+    FROM machine_stats m
+    CROSS JOIN LATERAL (
+      SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY median_cycle_seconds) AS fleet_median
+      FROM machine_stats o WHERE o.machine_id <> m.machine_id
+    ) f
+    ORDER BY m.machine_id`;
+  return rows.map((r) => ({
+    machine_id: r.machine_id,
+    facility_id: r.facility as FacilityId,
+    medianCycleSeconds: r.median,
+    fleetMedianSeconds: r.fleet_median === null ? null : Math.round(r.fleet_median),
+    cycleTimeDriftPct: r.drift_pct,
+    cycleCount: r.cycle_count,
+    lastEventAt: r.last_event_at?.toISOString() ?? null,
+    statusTone: toneFor(r.median, r.fleet_median, r.maintenance_count, r.sensor_glitch_count),
+  }));
+}
+
 export async function getWeeklyCycleTrend(
   sql: Db,
   machineId: string,

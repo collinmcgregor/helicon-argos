@@ -23,6 +23,42 @@ describe('w0-b harness', () => {
 // ---------------------------------------------------------------------------
 // W1-overview · routes: /            (append here)
 // ---------------------------------------------------------------------------
+describe('w1-overview route /', () => {
+  // no server runs during `npm run check` (build comes after vitest), so the
+  // always-on assertions recheck the route's render inputs straight from SQL;
+  // HTTP checks arm when the captain sets SMOKE_BASE_URL in Wave 2.
+  it('serves the overview headline numbers', async () => {
+    const [row] = await sql<
+      { overdue: number; value: number; blocked_held: number; press03_median: number }[]
+    >`
+      select (select count(*) from jobs_current where overdue)::int as overdue,
+             (select round(sum(revenue_at_risk)) from jobs_current where overdue)::int as value,
+             (select count(*) from jobs_current where status in ('blocked','held'))::int as blocked_held,
+             (select round(median_cycle_seconds) from machine_stats where machine_id = 'press_03')::int as press03_median`;
+    expect(row.overdue).toBe(26);
+    expect(row.value).toBe(590465);
+    expect(row.blocked_held).toBe(9);
+    expect(row.press03_median).toBe(1294);
+  });
+
+  describe.runIf(!!process.env.SMOKE_BASE_URL)('deployed', () => {
+    it('GET / renders KPIs, queue, and provenance footer', async () => {
+      const res = await fetch(`${BASE}/`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      // the DerivedBadge label is lowercase in markup, uppercased by CSS
+      for (const key of ['Operations overview', '590,465', 'press_03', '1,294', 'voids', '19,519', 'derived']) {
+        expect(html).toContain(key);
+      }
+    });
+
+    it('GET /?alert=ovw_press_06_incident exposes the incident evidence event_ids', async () => {
+      const html = await (await fetch(`${BASE}/?alert=ovw_press_06_incident`)).text();
+      expect(html).toContain('evt_010715');
+      expect(html).toContain('evt_011175');
+    });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // W1-jobs · routes: /jobs, /jobs/:jobId            (append here)

@@ -10,6 +10,23 @@ workflow:
 Every derived number on every screen drills down to raw `event_id`s, and every
 derived relationship is badged as such — source truth is never overwritten.
 
+## Live app
+
+**https://helicon-argos-collinmcgregors-projects.vercel.app**
+
+Access password: `argos-demo-2026` (this is a work-trial demo; the password in
+the README is deliberate). The signed-in demo user is an admin.
+
+## Demo path
+
+Two suggested walks through the console:
+
+1. **The degrading press** — open the `press_03` alert on the overview →
+   machine detail (cycle-time trend, zero maintenance on record) → affected
+   jobs → `job_0152` timeline → traced material `lot_6626`.
+2. **The late money** — overview → overdue tile ($590K) → jobs explorer,
+   filtered to overdue incomplete jobs.
+
 ## The five findings the console surfaces (all computed, none hand-written)
 
 1. **Quality is systemic, not asset-local** — the 46% in-process inspection fail
@@ -28,9 +45,14 @@ derived relationship is badged as such — source truth is never overwritten.
 
 ## Stack
 
-Next.js (App Router, TS, Tailwind v4) · Supabase Postgres · Vercel.
-No auth system — a password gate in `middleware.ts` (`APP_PASSWORD`), per the
-brief's "basic auth password" requirement. The signed-in demo user is an admin.
+| Layer | Choice |
+| --- | --- |
+| Frontend | Next.js 16 (App Router, React Server Components, TypeScript), Tailwind CSS v4, custom "Laminate" design system (light + dark themes) |
+| Backend | Next.js server components + route handlers on Vercel; all SQL behind typed query modules (`lib/queries/*`) |
+| Database | Supabase Postgres — raw immutable `events` table + derived views (`jobs_current`, `cycles`, `machine_stats`, `alerts`…) + versioned `ontology_*` config tables; bulk `psql \copy` ingest |
+| Auth | Deliberate minimal password gate in Next.js middleware (`APP_PASSWORD` env var, cookie session) — per the brief's "basic auth password"; no user accounts by design |
+| Testing | Three layers — SQL validation gates (`npm run validate`), exact-value query tests + route smoke tests (vitest), `npm run check` as the single ship gate; plus an independent JSONL recompute audit (0 mismatches) |
+| Deploy | Vercel (functions pinned to `pdx1`, same region as the database) |
 
 The clock is frozen to the event horizon (`2026-08-13T23:06:33Z`,
 `lib/constants.ts` / `frozen_now()` in SQL) so "overdue" stays meaningful on a
@@ -48,6 +70,15 @@ npm run dev
 
 `npm run check` = validate + vitest (query + smoke layers) + `next build` —
 the ship gate used throughout the build.
+
+### Environment variables (`.env.example`)
+
+| Variable | Notes |
+| --- | --- |
+| `DATABASE_URL` | Supabase pooler connection string. On Vercel use port **6543** (transaction mode); locally use port **5432** (session mode). |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase key. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. |
+| `APP_PASSWORD` | Password for the middleware gate (the live demo uses `argos-demo-2026`). |
 
 ## Repo tour
 

@@ -8,23 +8,6 @@ A digital factory twin for composite manufacturing
 
 password: `argos-demo-2026`
 
-## How Argos works
-
-Argos treats the JSONL as the immutable source of truth. Ingest replays each
-event into a current operational model; the UI reads that model and calculates
-findings at the fixed event horizon. It never updates the raw log or presents a
-derived finding as a source fact.
-
-```text
-manufacturing_events.jsonl
-        ↓ ingest + validation
-raw events (physical sequence preserves duplicate event IDs)
-        ↓ derived Postgres views
-jobs · cycles · inspections · machine statistics · alerts
-        ↓ typed server-side query modules
-overview → investigation → affected work → raw event evidence
-```
-
 ### What the app evaluates
 
 | Element | What it represents | How it is calculated / used |

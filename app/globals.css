@@ -1,26 +1,78 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-bg-0: #0b0e12;
+  --color-bg-1: #10151b;
+  --color-bg-2: #151b22;
+  --color-bg-3: #1a222b;
+  --color-bg-inset: #0d1116;
+  --color-border: #232c36;
+  --color-border-strong: #33404d;
+  --color-border-faint: #1a222b;
+  --color-text-primary: #e8edf2;
+  --color-text-secondary: #9aa7b4;
+  --color-text-muted: #5c6b7a;
+  --color-accent: #4c90f0;
+  --color-accent-resin: #e8a33d;
+  --color-status-ok: #3fb950;
+  --color-status-ok-dim: #3fb9501f;
+  --color-status-warn: #e8a33d;
+  --color-status-warn-dim: #e8a33d1f;
+  --color-status-critical: #f0564a;
+  --color-status-critical-dim: #f0564a1f;
+  --color-status-info: #4c90f0;
+  --color-status-info-dim: #4c90f01f;
+  --color-series-1: #3987e5;
+  --color-series-2: #d95926;
+  --color-series-3: #199e70;
+  --color-series-4: #c98500;
+  --color-series-5: #d55181;
+  --color-series-6: #9085e9;
+  --color-chart-grid: #1a222b;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --radius-sm: 2px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg-0);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* loading state: opacity pulse only (blacklist: no shimmer/spring) */
+@keyframes laminate-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.animate-laminate-pulse {
+  animation: laminate-pulse 1.6s ease-in-out infinite;
+}
+
+/* twill weave texture — top bar only, never on data surfaces */
+.weave-texture {
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(232, 237, 242, 0.012) 0px,
+      rgba(232, 237, 242, 0.012) 2px,
+      transparent 2px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(232, 237, 242, 0.012) 0px,
+      rgba(232, 237, 242, 0.012) 2px,
+      transparent 2px,
+      transparent 6px
+    );
 }

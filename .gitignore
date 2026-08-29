@@ -11,3 +11,4 @@ coverage/
 # Local secrets
 .env
 .env.local
+tsconfig.tsbuildinfo

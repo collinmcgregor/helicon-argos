@@ -1,25 +1,15 @@
 # Helicon Argos (v0.0)
 
-**Helicon Argos** is an operations digital twin for discrete manufacturing. It turns a raw, append-only event log into a connected representation of factory work, assets, quality, and delivery risk—so an operations team can move from a signal to evidence to action.
+This is a digital twin for composite manufacturing to drastically accelerate factory operations and diagnose/fix any issues that arise
 
-The starting data is `manufacturing_events.jsonl`, a synthetic manufacturing-event log with 19,519 events. It records job lifecycle changes, production cycles, inspection outcomes, tooling, machine signals, materials, facilities, and quantities.
-
-## Product purpose
-
-A spreadsheet can summarize what happened. It cannot reliably maintain current operational state, connect related entities, detect cross-event patterns, or give a team a shared workflow for resolving exceptions.
-
-Dragonfly will answer:
+## Product purpose - to answer these questions and fix these problems:
 
 - Which jobs are active, blocked, late, or likely to miss their due date?
 - Which machines, tools, materials, or defects are associated with quality and throughput risk?
 - If an asset or material is suspect, which jobs, parts, and customers are affected?
 - What is the evidence behind an operational alert, and what should happen next?
 
-The product is an **operational digital twin**, not a 3D model of a factory. The twin maintains the changing business state of the production system from its immutable source events.
-
 ## Ontology
-
-### Source of truth
 
 `Event` is the immutable source record:
 

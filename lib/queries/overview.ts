@@ -400,7 +400,8 @@ export async function getFacilityPulse(sql: Sql): Promise<FacilityPulse[]> {
 }
 
 export async function getMachineStrip(sql: Sql, facility?: FacilityId): Promise<MachineStripCell[]> {
-  const fac = facility ? sql`and facility = ${facility}` : sql``;
+  // A press is homed at the facility with most of its cycles; the facility
+  // filter keeps only that facility's own presses (stats stay machine-wide).
   const rows = await sql<
     {
       machine_id: string;
@@ -409,6 +410,7 @@ export async function getMachineStrip(sql: Sql, facility?: FacilityId): Promise<
       maintenance: number;
       recovered: boolean;
       weekly: number[];
+      home_facility: string;
     }[]
   >`
     select c.machine_id,
@@ -422,13 +424,15 @@ export async function getMachineStrip(sql: Sql, facility?: FacilityId): Promise<
            (select array_agg(med order by wk) from (
               select date_trunc('week', timestamp) as wk,
                      round(percentile_cont(0.5) within group (order by cycle_time_seconds))::int as med
-              from cycles w where w.machine_id = c.machine_id ${fac}
-              group by 1) s) as weekly
+              from cycles w where w.machine_id = c.machine_id
+              group by 1) s) as weekly,
+           (select facility from cycles i where i.machine_id = c.machine_id
+             group by facility order by count(*) desc limit 1) as home_facility
     from cycles c
-    where c.machine_id like 'press_%' ${fac}
+    where c.machine_id like 'press_%'
     group by c.machine_id
     order by c.machine_id`;
-  return rows.map((r) => {
+  return rows.filter((r) => !facility || r.home_facility === facility).map((r) => {
     const others = rows.filter((o) => o.machine_id !== r.machine_id).map((o) => o.median);
     const fleet = others.sort((a, b) => a - b)[Math.floor(others.length / 2)] ?? r.median;
     const tone: StatusTone =

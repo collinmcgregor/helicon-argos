@@ -8,6 +8,7 @@ import {
   formatFacility,
   formatMinutes,
 } from '@/lib/display';
+import { EmptyState } from '@/components/EmptyState';
 import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -51,11 +52,17 @@ export default async function MachinesPage({
         label="Production presses"
         count={
           facility
-            ? `${machines.length} active in ${formatFacility(facility)}`
+            ? `${machines.length} homed in ${formatFacility(facility)}`
             : machines.length
         }
         padded={false}
       >
+        {machines.length === 0 ? (
+          <EmptyState
+            message={`No presses are homed in ${facility ? formatFacility(facility) : 'this facility'} — all six presses record most of their cycles in LA 1.`}
+            queryContext={`facility=${facility ?? 'all'} · home = facility with most recorded cycles`}
+          />
+        ) : (
         <Table>
           <THead>
             <tr>
@@ -119,11 +126,10 @@ export default async function MachinesPage({
             ))}
           </tbody>
         </Table>
+        )}
       </Panel>
       <span className="text-[11px] text-text-muted">
-        {facility
-          ? `Scoped to ${formatFacility(facility)}: every figure covers only cycles this facility recorded on each press. `
-          : 'Facility shows where each press records most of its cycles. '}
+        {'Each press is homed at the facility where it records most of its cycles. '}
         Timing from completed production cycles. QC stations QC 1/QC 2 are not production
         machines; their inspections attribute to presses only via the derived Job → Cycle
         association.

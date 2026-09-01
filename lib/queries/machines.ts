@@ -142,52 +142,8 @@ export async function getMachine(sql: Db, machineId: string): Promise<MachineDet
 }
 
 export async function listMachines(sql: Db, facility?: FacilityId): Promise<Machine[]> {
-  // With a facility selected, timing stats cover only that facility's cycles
-  // (presses record cycles under both facility tags); maintenance/glitch/drift
-  // stay machine-wide from machine_stats.
-  if (facility) {
-    const rows = await sql<
-      {
-        machine_id: string;
-        median: number | null;
-        cycle_count: number;
-        maintenance_count: number;
-        sensor_glitch_count: number;
-        drift_pct: number | null;
-        facility: string;
-        last_event_at: Date | null;
-      }[]
-    >`
-      SELECT c.machine_id,
-             round(percentile_cont(0.5) WITHIN GROUP (ORDER BY c.cycle_time_seconds))::int AS median,
-             count(*)::int AS cycle_count,
-             m.maintenance_count::int AS maintenance_count,
-             m.sensor_glitch_count::int AS sensor_glitch_count,
-             m.drift_pct::float8 AS drift_pct,
-             ${facility}::text AS facility,
-             (SELECT max(timestamp) FROM events e
-               WHERE e.machine_id = c.machine_id AND e.facility = ${facility}) AS last_event_at
-      FROM cycles c
-      JOIN machine_stats m ON m.machine_id = c.machine_id
-      WHERE c.facility = ${facility} AND c.machine_id LIKE 'press_%'
-      GROUP BY c.machine_id, m.maintenance_count, m.sensor_glitch_count, m.drift_pct
-      ORDER BY c.machine_id`;
-    return rows.map((r) => {
-      const others = rows.filter((o) => o.machine_id !== r.machine_id && o.median !== null);
-      const sorted = others.map((o) => o.median as number).sort((a, b) => a - b);
-      const fleet = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
-      return {
-        machine_id: r.machine_id,
-        facility_id: r.facility as FacilityId,
-        medianCycleSeconds: r.median,
-        fleetMedianSeconds: fleet,
-        cycleTimeDriftPct: r.drift_pct,
-        cycleCount: r.cycle_count,
-        lastEventAt: r.last_event_at?.toISOString() ?? null,
-        statusTone: toneFor(r.median, fleet, r.maintenance_count, r.sensor_glitch_count),
-      };
-    });
-  }
+  // A machine is homed at the facility where it records most of its cycles;
+  // the facility filter shows only that facility's own presses.
   const rows = await sql<
     {
       machine_id: string;
@@ -216,16 +172,18 @@ export async function listMachines(sql: Db, facility?: FacilityId): Promise<Mach
       FROM machine_stats o WHERE o.machine_id <> m.machine_id
     ) f
     ORDER BY m.machine_id`;
-  return rows.map((r) => ({
-    machine_id: r.machine_id,
-    facility_id: r.facility as FacilityId,
-    medianCycleSeconds: r.median,
-    fleetMedianSeconds: r.fleet_median === null ? null : Math.round(r.fleet_median),
-    cycleTimeDriftPct: r.drift_pct,
-    cycleCount: r.cycle_count,
-    lastEventAt: r.last_event_at?.toISOString() ?? null,
-    statusTone: toneFor(r.median, r.fleet_median, r.maintenance_count, r.sensor_glitch_count),
-  }));
+  return rows
+    .filter((r) => !facility || r.facility === facility)
+    .map((r) => ({
+      machine_id: r.machine_id,
+      facility_id: r.facility as FacilityId,
+      medianCycleSeconds: r.median,
+      fleetMedianSeconds: r.fleet_median === null ? null : Math.round(r.fleet_median),
+      cycleTimeDriftPct: r.drift_pct,
+      cycleCount: r.cycle_count,
+      lastEventAt: r.last_event_at?.toISOString() ?? null,
+      statusTone: toneFor(r.median, r.fleet_median, r.maintenance_count, r.sensor_glitch_count),
+    }));
 }
 
 export async function getWeeklyCycleTrend(

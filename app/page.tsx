@@ -239,6 +239,11 @@ export default async function OverviewPage({
 
       <div className="grid grid-cols-2 gap-3">
         <Panel label="Cycle time by press" count="median · lower is faster">
+          {strip.length === 0 ? (
+            <div className="text-[12px] text-text-muted">
+              No presses homed in this facility — clear the facility filter to compare the fleet.
+            </div>
+          ) : (
           <CategoryBars
             rows={strip.map((m) => ({
               key: m.machine_id,
@@ -251,10 +256,13 @@ export default async function OverviewPage({
             }))}
             reference={{ value: fleetRef, label: `fleet median ${formatMinutes(fleetRef)}` }}
           />
-          <p className="mt-2 border-t border-border-faint pt-2 text-[12px] text-text-secondary">
-            Press 3 runs {p3AbovePct}% above the fleet median with no maintenance on record — click a
-            press to investigate.
-          </p>
+          )}
+          {press03 && (
+            <p className="mt-2 border-t border-border-faint pt-2 text-[12px] text-text-secondary">
+              Press 3 runs {p3AbovePct}% above the fleet median with no maintenance on record —
+              click a press to investigate.
+            </p>
+          )}
         </Panel>
         <Panel label="Failed inspections by defect" count={`${fmt(totalFailed)} failures`}>
           <CategoryBars
@@ -317,6 +325,12 @@ export default async function OverviewPage({
               </Link>
             ))}
           </div>
+          {strip.length === 0 && facility && (
+            <div className="text-[12px] text-text-muted">
+              No presses are homed in {formatFacility(facility)} — all six record most of their
+              cycles in LA 1.
+            </div>
+          )}
           <div className="grid grid-cols-6 gap-2">
             {strip.map((m) => (
               <Link

@@ -258,3 +258,27 @@ describe('w1-admin /admin/ontology', () => {
 // ---------------------------------------------------------------------------
 // Wave 2 · captain: deployed-URL smoke (SMOKE_BASE_URL)            (append here)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// post-wave · /tools                                              (append here)
+// ---------------------------------------------------------------------------
+describe('tools routes', () => {
+  it('serves the tool aggregates from cycle evidence', async () => {
+    const [r] = await sql<{ tools: string; tool14_cycles: string }[]>`
+      SELECT (SELECT count(distinct tool_id) FROM cycles WHERE tool_id IS NOT NULL) AS tools,
+             (SELECT count(*) FROM cycles WHERE tool_id = 'tool_14') AS tool14_cycles`;
+    expect(Number(r.tools)).toBe(25);
+    expect(Number(r.tool14_cycles)).toBeGreaterThan(0);
+  }, 40_000);
+
+  describe.runIf(!!process.env.SMOKE_BASE_URL)('deployed', () => {
+    it('GET /tools lists tooling with cycle counts', async () => {
+      const html = await (await fetch(`${process.env.SMOKE_BASE_URL}/tools`)).text();
+      for (const key of ['Tools', 'tool_14', 'Presses used on']) expect(html).toContain(key);
+    });
+    it('GET /tools/tool_14 shows jobs and recent cycles', async () => {
+      const html = await (await fetch(`${process.env.SMOKE_BASE_URL}/tools/tool_14`)).text();
+      for (const key of ['Jobs run with this tool', 'Recent cycles', 'evt_']) expect(html).toContain(key);
+    });
+  });
+});

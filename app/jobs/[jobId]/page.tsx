@@ -19,6 +19,7 @@ import {
   formatLabelLower,
   formatStamp,
 } from '@/lib/display';
+import { NOW } from '@/lib/constants';
 import type { StatusTone } from '@/lib/types';
 import { getJob, type JobEvent } from '@/lib/queries/jobs';
 import { money, STATUS_TONE } from '../format';
@@ -125,6 +126,39 @@ export default async function JobDetailPage({
       ? blocks.filter((b) => b.event_type !== 'job_unblocked').at(-1)
       : undefined;
 
+  // Late diagnosis: every line is a fact from this job's own events vs the
+  // frozen horizon — no speculation, just where the time went.
+  const DAY_MS = 86_400_000;
+  const createdAt = timeline.find((e) => e.event_type === 'job_created')?.timestamp;
+  const startedAt = timeline.find((e) => e.event_type === 'job_started')?.timestamp;
+  const lastEventAt = timeline.at(-1)?.timestamp;
+  const lateFacts: string[] = [];
+  if (job.deliveryRisk === 'overdue') {
+    const daysLate = Math.max(1, Math.floor((NOW.getTime() - Date.parse(job.due_date)) / DAY_MS));
+    lateFacts.push(
+      `${daysLate} day${daysLate === 1 ? '' : 's'} past due (due ${formatDate(job.due_date)})` +
+        (job.valueAtRisk !== null ? ` · ${money(job.valueAtRisk)} at risk` : ''),
+    );
+    lateFacts.push(
+      `${job.cycleQuantity} qty of ${job.target_quantity} target produced — no completion event recorded`,
+    );
+    if (createdAt && startedAt) {
+      const lag = Math.round((Date.parse(startedAt) - Date.parse(createdAt)) / DAY_MS);
+      if (lag >= 2) lateFacts.push(`production started ${lag} days after order entry`);
+    } else if (createdAt && !startedAt) {
+      lateFacts.push('production never started');
+    }
+    if (lastEventAt) {
+      const idle = Math.floor((NOW.getTime() - Date.parse(lastEventAt)) / DAY_MS);
+      if (idle >= 2)
+        lateFacts.push(`no activity for ${idle} days — last event ${formatDate(lastEventAt)}`);
+    }
+    if (openBlock)
+      lateFacts.push(
+        `currently ${job.status}: ${openBlock.reason ? formatLabelLower(openBlock.reason) : 'unspecified'} (${openBlock.event_id})`,
+      );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <PageTitle
@@ -176,6 +210,30 @@ export default async function JobDetailPage({
         </span>
       </div>
 
+      {lateFacts.length > 0 && (
+        <div
+          className="rounded-sm border border-border bg-bg-2 px-4 py-3"
+          style={{ borderLeft: '3px solid var(--color-status-critical)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+              Why it&apos;s late
+            </span>
+            <DerivedBadge
+              provenance="derived"
+              caveat="computed from this job's raw events vs the frozen horizon"
+            />
+          </div>
+          <ul className="mt-1.5 flex flex-col gap-0.5">
+            {lateFacts.map((f) => (
+              <li key={f} className="font-mono text-[12.5px] text-text-secondary">
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid grid-cols-[2fr_1fr] items-start gap-3">
         <Panel
           padded={false}
@@ -223,8 +281,14 @@ export default async function JobDetailPage({
                   </span>
                 ))}
                 {tools.map((t) => (
-                  <span key={t} className="font-mono text-[12.5px] text-text-secondary">
-                    {formatEntityId(t)} <span className="text-text-muted">· tool</span>
+                  <span key={t} className="font-mono text-[12.5px]">
+                    <Link
+                      href={`/tools/${t}${forward}` as Route}
+                      className="text-text-primary underline decoration-border underline-offset-2 transition-colors duration-100 hover:decoration-text-secondary"
+                    >
+                      {formatEntityId(t)}
+                    </Link>
+                    <span className="text-text-muted"> · tool · all cycles →</span>
                   </span>
                 ))}
                 <span className="text-[11px] text-text-muted">

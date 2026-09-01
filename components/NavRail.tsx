@@ -18,6 +18,7 @@ const SECTIONS: { label: string; items: { label: string; href: string }[] }[] = 
     items: [
       { label: 'Alerts', href: '/alerts' },
       { label: 'Machines', href: '/machines' },
+      { label: 'Tools', href: '/tools' },
     ],
   },
   {

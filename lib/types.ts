@@ -102,6 +102,8 @@ export interface Machine {
   cycleCount: number;
   lastEventAt: string | null;
   statusTone: StatusTone;
+  /** weekly cycle-time medians for this press at this facility (sparkline) */
+  weeklyMedians?: number[];
 }
 
 export interface Tool {

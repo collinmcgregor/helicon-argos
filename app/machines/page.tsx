@@ -14,7 +14,6 @@ import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
 import { listMachines } from '@/lib/queries/machines';
-import { getMachineStrip } from '@/lib/queries/overview';
 import { machineLabel } from '@/lib/present';
 import { Sparkline } from '@/app/overview-charts';
 
@@ -34,12 +33,7 @@ export default async function MachinesPage({
 }) {
   const sp = await searchParams;
   const facility = sp.facility === 'la_01' || sp.facility === 'la_02' ? sp.facility : undefined;
-  const facilityQs = facility ? `?facility=${facility}` : '';
-  const [machines, strip] = await Promise.all([
-    listMachines(sql, facility),
-    getMachineStrip(sql, facility),
-  ]);
-  const weeklies = new Map(strip.map((s) => [s.machine_id, s.weeklyMedians]));
+  const machines = await listMachines(sql, facility);
 
   return (
     <div className="flex max-w-6xl flex-col gap-3">
@@ -51,16 +45,14 @@ export default async function MachinesPage({
       <Panel
         label="Production presses"
         count={
-          facility
-            ? `${machines.length} homed in ${formatFacility(facility)}`
-            : machines.length
+          facility ? `${machines.length} in ${formatFacility(facility)}` : `${machines.length} presses`
         }
         padded={false}
       >
         {machines.length === 0 ? (
           <EmptyState
-            message={`No presses are homed in ${facility ? formatFacility(facility) : 'this facility'} — all six presses record most of their cycles in LA 1.`}
-            queryContext={`facility=${facility ?? 'all'} · home = facility with most recorded cycles`}
+            message="No presses recorded activity here."
+            queryContext={`facility=${facility ?? 'all'}`}
           />
         ) : (
         <Table>
@@ -79,16 +71,20 @@ export default async function MachinesPage({
           </THead>
           <tbody>
             {machines.map((m) => (
-              <Tr key={m.machine_id}>
+              <Tr key={`${m.machine_id}-${m.facility_id}`}>
                 <Td mono>
                   <Link
-                    href={`/machines/${m.machine_id}${facilityQs}` as Route}
+                    href={`/machines/${m.machine_id}?facility=${m.facility_id}` as Route}
                     className="text-accent hover:underline"
                   >
                     {formatEntityId(m.machine_id)}
                   </Link>
                 </Td>
-                <Td mono className="text-text-secondary">{formatFacility(m.facility_id)}</Td>
+                <Td>
+                  <span className="rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
+                    {formatFacility(m.facility_id)}
+                  </span>
+                </Td>
                 <Td>
                   <StatusBadge
                     tone={m.statusTone}
@@ -114,11 +110,8 @@ export default async function MachinesPage({
                     : '—'}
                 </Td>
                 <Td>
-                  {(weeklies.get(m.machine_id) ?? []).length > 1 && (
-                    <Sparkline
-                      values={weeklies.get(m.machine_id)!}
-                      stroke={TONE_COLOR[m.statusTone]}
-                    />
+                  {(m.weeklyMedians ?? []).length > 1 && (
+                    <Sparkline values={m.weeklyMedians!} stroke={TONE_COLOR[m.statusTone]} />
                   )}
                 </Td>
                 <Td mono>{m.lastEventAt ? formatDate(m.lastEventAt) : '—'}</Td>
@@ -129,7 +122,7 @@ export default async function MachinesPage({
         )}
       </Panel>
       <span className="text-[11px] text-text-muted">
-        {'Each press is homed at the facility where it records most of its cycles. '}
+        {'Press ids repeat across facilities — Press 1 in LA 1 and Press 1 in LA 2 are different physical presses, so every stat here covers one press at one facility. Fleet median compares against the other presses in the same facility. '}
         Timing from completed production cycles. QC stations QC 1/QC 2 are not production
         machines; their inspections attribute to presses only via the derived Job → Cycle
         association.

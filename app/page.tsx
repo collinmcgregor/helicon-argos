@@ -241,7 +241,7 @@ export default async function OverviewPage({
         <Panel label="Cycle time by press" count="median · lower is faster">
           {strip.length === 0 ? (
             <div className="text-[12px] text-text-muted">
-              No presses homed in this facility — clear the facility filter to compare the fleet.
+              No press activity in this facility view — clear the facility filter to compare the fleet.
             </div>
           ) : (
           <CategoryBars
@@ -327,8 +327,7 @@ export default async function OverviewPage({
           </div>
           {strip.length === 0 && facility && (
             <div className="text-[12px] text-text-muted">
-              No presses are homed in {formatFacility(facility)} — all six record most of their
-              cycles in LA 1.
+              No press activity recorded in {formatFacility(facility)}.
             </div>
           )}
           <div className="grid grid-cols-6 gap-2">

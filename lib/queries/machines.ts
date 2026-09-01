@@ -142,48 +142,70 @@ export async function getMachine(sql: Db, machineId: string): Promise<MachineDet
 }
 
 export async function listMachines(sql: Db, facility?: FacilityId): Promise<Machine[]> {
-  // A machine is homed at the facility where it records most of its cycles;
-  // the facility filter shows only that facility's own presses.
+  // Press ids are reused across facilities: press_01@la_01 and press_01@la_02
+  // are different physical presses. The grain here is (machine_id, facility) —
+  // 12 presses in all — and every stat covers only that pair's own events.
   const rows = await sql<
     {
       machine_id: string;
+      facility: string;
       median: number | null;
-      fleet_median: number | null;
       cycle_count: number;
       maintenance_count: number;
       sensor_glitch_count: number;
-      drift_pct: number | null;
-      facility: string;
+      h1: number | null;
+      h2: number | null;
       last_event_at: Date | null;
+      weekly: number[] | null;
     }[]
   >`
-    SELECT m.machine_id, round(m.median_cycle_seconds)::int AS median,
-           f.fleet_median::float8 AS fleet_median,
-           m.cycle_count::int AS cycle_count,
-           m.maintenance_count::int AS maintenance_count,
-           m.sensor_glitch_count::int AS sensor_glitch_count,
-           m.drift_pct::float8 AS drift_pct,
-           (SELECT facility FROM cycles c WHERE c.machine_id = m.machine_id
-            GROUP BY facility ORDER BY count(*) DESC LIMIT 1) AS facility,
-           (SELECT max(timestamp) FROM events e WHERE e.machine_id = m.machine_id) AS last_event_at
-    FROM machine_stats m
-    CROSS JOIN LATERAL (
-      SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY median_cycle_seconds) AS fleet_median
-      FROM machine_stats o WHERE o.machine_id <> m.machine_id
-    ) f
-    ORDER BY m.machine_id`;
-  return rows
-    .filter((r) => !facility || r.facility === facility)
-    .map((r) => ({
+    WITH halves AS (
+      SELECT machine_id, facility, cycle_time_seconds, timestamp,
+             ntile(2) OVER (PARTITION BY machine_id, facility ORDER BY timestamp) AS half
+      FROM cycles WHERE machine_id LIKE 'press_%'
+    )
+    SELECT p.machine_id, p.facility,
+           round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.cycle_time_seconds))::int AS median,
+           count(*)::int AS cycle_count,
+           (SELECT count(*) FROM events e WHERE e.machine_id = p.machine_id
+             AND e.facility = p.facility AND e.event_type = 'maintenance_ping')::int AS maintenance_count,
+           (SELECT count(*) FROM events e WHERE e.machine_id = p.machine_id
+             AND e.facility = p.facility AND e.event_type = 'sensor_glitch')::int AS sensor_glitch_count,
+           round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.cycle_time_seconds)
+             FILTER (WHERE p.half = 1))::int AS h1,
+           round(percentile_cont(0.5) WITHIN GROUP (ORDER BY p.cycle_time_seconds)
+             FILTER (WHERE p.half = 2))::int AS h2,
+           (SELECT max(timestamp) FROM events e WHERE e.machine_id = p.machine_id
+             AND e.facility = p.facility) AS last_event_at,
+           (SELECT array_agg(med ORDER BY wk) FROM (
+              SELECT date_trunc('week', timestamp) AS wk,
+                     round(percentile_cont(0.5) WITHIN GROUP (ORDER BY cycle_time_seconds))::int AS med
+              FROM cycles w WHERE w.machine_id = p.machine_id AND w.facility = p.facility
+              GROUP BY 1) s) AS weekly
+    FROM halves p
+    GROUP BY p.machine_id, p.facility
+    ORDER BY p.facility, p.machine_id`;
+  const shown = rows.filter((r) => !facility || r.facility === facility);
+  return shown.map((r) => {
+    // fleet baseline = median of the *other* presses in the same facility
+    const others = rows
+      .filter((o) => o.facility === r.facility && o.machine_id !== r.machine_id && o.median !== null)
+      .map((o) => o.median as number)
+      .sort((a, b) => a - b);
+    const fleet = others.length ? others[Math.floor(others.length / 2)] : null;
+    const drift = r.h1 && r.h2 ? Math.round(((r.h2 / r.h1 - 1) * 100) * 10) / 10 : null;
+    return {
       machine_id: r.machine_id,
       facility_id: r.facility as FacilityId,
       medianCycleSeconds: r.median,
-      fleetMedianSeconds: r.fleet_median === null ? null : Math.round(r.fleet_median),
-      cycleTimeDriftPct: r.drift_pct,
+      fleetMedianSeconds: fleet,
+      cycleTimeDriftPct: drift,
       cycleCount: r.cycle_count,
       lastEventAt: r.last_event_at?.toISOString() ?? null,
-      statusTone: toneFor(r.median, r.fleet_median, r.maintenance_count, r.sensor_glitch_count),
-    }));
+      statusTone: toneFor(r.median, fleet, r.maintenance_count, r.sensor_glitch_count),
+      weeklyMedians: r.weekly ?? [],
+    };
+  });
 }
 
 export async function getWeeklyCycleTrend(

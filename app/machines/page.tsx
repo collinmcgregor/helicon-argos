@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import type { Route } from 'next';
 import { sql } from '@/lib/db';
-import { EVENT_HORIZON_DISPLAY, formatDate, formatEntityId, formatMinutes } from '@/lib/display';
+import {
+  EVENT_HORIZON_DISPLAY,
+  formatDate,
+  formatEntityId,
+  formatFacility,
+  formatMinutes,
+} from '@/lib/display';
 import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -26,9 +32,12 @@ export default async function MachinesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const facilityQs =
-    sp.facility === 'la_01' || sp.facility === 'la_02' ? `?facility=${sp.facility}` : '';
-  const [machines, strip] = await Promise.all([listMachines(sql), getMachineStrip(sql)]);
+  const facility = sp.facility === 'la_01' || sp.facility === 'la_02' ? sp.facility : undefined;
+  const facilityQs = facility ? `?facility=${facility}` : '';
+  const [machines, strip] = await Promise.all([
+    listMachines(sql, facility),
+    getMachineStrip(sql, facility),
+  ]);
   const weeklies = new Map(strip.map((s) => [s.machine_id, s.weeklyMedians]));
 
   return (
@@ -38,11 +47,20 @@ export default async function MachinesPage({
       >
         Machines
       </PageTitle>
-      <Panel label="Production presses" count={machines.length} padded={false}>
+      <Panel
+        label="Production presses"
+        count={
+          facility
+            ? `${machines.length} active in ${formatFacility(facility)}`
+            : machines.length
+        }
+        padded={false}
+      >
         <Table>
           <THead>
             <tr>
               <Th>Machine</Th>
+              <Th>Facility</Th>
               <Th>State</Th>
               <Th numeric>Cycles</Th>
               <Th numeric>Median cycle</Th>
@@ -63,6 +81,7 @@ export default async function MachinesPage({
                     {formatEntityId(m.machine_id)}
                   </Link>
                 </Td>
+                <Td mono className="text-text-secondary">{formatFacility(m.facility_id)}</Td>
                 <Td>
                   <StatusBadge
                     tone={m.statusTone}
@@ -102,6 +121,9 @@ export default async function MachinesPage({
         </Table>
       </Panel>
       <span className="text-[11px] text-text-muted">
+        {facility
+          ? `Scoped to ${formatFacility(facility)}: every figure covers only cycles this facility recorded on each press. `
+          : 'Facility shows where each press records most of its cycles. '}
         Timing from completed production cycles. QC stations QC 1/QC 2 are not production
         machines; their inspections attribute to presses only via the derived Job → Cycle
         association.

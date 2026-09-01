@@ -8,7 +8,7 @@ import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
 import { PlyBar } from '@/components/PlyBar';
 import { StatusBadge } from '@/components/StatusBadge';
-import { TimelineRow } from '@/components/TimelineRow';
+import { TimelineHeader, TimelineRow } from '@/components/TimelineRow';
 import {
   EVENT_HORIZON_DISPLAY,
   formatDate,
@@ -23,55 +23,75 @@ import type { StatusTone } from '@/lib/types';
 import { getJob, type JobEvent } from '@/lib/queries/jobs';
 import { money, STATUS_TONE } from '../format';
 
-function eventTone(e: JobEvent): StatusTone {
-  switch (e.event_type) {
-    case 'job_blocked':
-    case 'job_hold':
-      return 'critical';
-    case 'inspection_failed':
-    case 'sensor_glitch':
-      return 'warn';
-    case 'job_completed':
-    case 'job_unblocked':
-    case 'inspection_passed':
-      return 'ok';
-    default:
-      return 'info';
-  }
+interface TimelineCells {
+  label: string;
+  tone: StatusTone;
+  detail?: string;
+  qty?: number | null;
+  who?: string | null;
 }
 
-function eventSummary(e: JobEvent): string {
+function eventCells(e: JobEvent): TimelineCells {
+  const machine = e.machine_id ? formatEntityId(e.machine_id) : '—';
   switch (e.event_type) {
     case 'job_created':
-      return 'job created';
+      return { label: 'Created', tone: 'info' };
     case 'job_started':
-      return 'production started';
+      return { label: 'Started', tone: 'info', detail: 'production started' };
     case 'tool_ready':
-      return `${e.tool_id ? formatEntityId(e.tool_id) : 'tool —'} ready`;
+      return { label: 'Tool ready', tone: 'info', detail: e.tool_id ? formatEntityId(e.tool_id) : undefined };
     case 'cycle_completed':
-      return `${e.machine_id ? formatEntityId(e.machine_id) : '—'} · ${e.tool_id ? formatEntityId(e.tool_id) : '—'} · qty ${e.quantity ?? 0} · ${e.cycle_time_seconds ?? '—'}s`;
+      return {
+        label: 'Cycle',
+        tone: 'info',
+        detail: `${machine} · ${e.tool_id ? formatEntityId(e.tool_id) : '—'} · ${e.cycle_time_seconds ?? '—'}s`,
+        qty: e.quantity,
+      };
     case 'inspection_passed':
-      return `passed · qty ${e.quantity ?? 0} · ${e.inspector_id ? formatEntityId(e.inspector_id) : '—'}`;
+      return {
+        label: 'Passed',
+        tone: 'ok',
+        qty: e.quantity,
+        who: e.inspector_id ? formatEntityId(e.inspector_id) : null,
+      };
     case 'inspection_failed':
-      return `failed · qty ${e.quantity ?? 0} · ${e.defect_code ? formatLabelLower(e.defect_code) : 'no defect code'} · ${e.inspector_id ? formatEntityId(e.inspector_id) : '—'}`;
+      return {
+        label: 'Failed',
+        tone: 'critical',
+        detail: e.defect_code ? formatLabelLower(e.defect_code) : 'no defect code',
+        qty: e.quantity,
+        who: e.inspector_id ? formatEntityId(e.inspector_id) : null,
+      };
     case 'material_lot_scan':
-      return `${e.lot_id ? formatEntityId(e.lot_id) : 'lot —'} scanned`;
+      return { label: 'Lot scan', tone: 'info', detail: e.lot_id ? formatEntityId(e.lot_id) : undefined };
     case 'job_blocked':
-      return `blocked: ${e.reason ? formatLabelLower(e.reason) : 'unspecified'}`;
+      return { label: 'Blocked', tone: 'critical', detail: e.reason ? formatLabelLower(e.reason) : 'unspecified' };
     case 'job_hold':
-      return `held: ${e.reason ? formatLabelLower(e.reason) : 'unspecified'}`;
+      return { label: 'Held', tone: 'warn', detail: e.reason ? formatLabelLower(e.reason) : 'unspecified' };
     case 'job_unblocked':
-      return 'unblocked';
+      return { label: 'Unblocked', tone: 'ok' };
     case 'job_completed':
-      return `completed · good ${e.good_quantity ?? 0} · scrap ${e.scrap_quantity ?? 0}`;
+      return {
+        label: 'Completed',
+        tone: 'ok',
+        detail: `good ${e.good_quantity ?? 0} · scrap ${e.scrap_quantity ?? 0}`,
+      };
     case 'shift_handoff':
-      return `shift handoff${e.operator_id ? ` · ${formatEntityId(e.operator_id)}` : ''}`;
+      return {
+        label: 'Handoff',
+        tone: 'info',
+        who: e.operator_id ? formatEntityId(e.operator_id) : null,
+      };
     case 'maintenance_ping':
-      return `maintenance ping · ${e.machine_id ? formatEntityId(e.machine_id) : '—'}`;
+      return { label: 'Maintenance', tone: 'info', detail: machine };
     case 'sensor_glitch':
-      return `sensor glitch${e.signal ? ` · ${formatLabelLower(e.signal)}` : ''} · ${e.machine_id ? formatEntityId(e.machine_id) : '—'}`;
+      return {
+        label: 'Glitch',
+        tone: 'warn',
+        detail: `${e.signal ? `${formatLabelLower(e.signal)} · ` : ''}${machine}`,
+      };
     default:
-      return e.event_type;
+      return { label: e.event_type, tone: 'info' };
   }
 }
 
@@ -173,16 +193,14 @@ export default async function JobDetailPage({
           }
         >
           <div className="flex flex-col px-2 py-1">
+            <TimelineHeader />
             {events.map((e) => (
               <TimelineRow
                 key={e.seq}
                 timestamp={formatStamp(e.timestamp)}
-                eventType={e.event_type}
                 eventId={e.event_id}
-                tone={eventTone(e)}
-              >
-                {eventSummary(e)}
-              </TimelineRow>
+                {...eventCells(e)}
+              />
             ))}
           </div>
         </Panel>

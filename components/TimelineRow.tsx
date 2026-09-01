@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { StatusTone } from '@/lib/types';
-import { eventLabel } from '@/lib/present';
 
 const TONE_COLOR: Record<StatusTone, string> = {
   ok: 'var(--color-status-ok)',
@@ -11,21 +10,32 @@ const TONE_COLOR: Record<StatusTone, string> = {
   info: 'var(--color-status-info)',
 };
 
-// Event-timeline log row (32px): --bg-inset gutter with a 1px vertical line and a
-// 4px square node · fixed-width mono timestamp · event_type mono chip · summary ·
-// muted click-to-copy event_id. It's a log — render it like one.
+const TONE_BG: Record<StatusTone, string> = {
+  ok: 'var(--color-status-ok-dim)',
+  warn: 'var(--color-status-warn-dim)',
+  critical: 'var(--color-status-critical-dim)',
+  info: 'var(--color-bg-inset)',
+};
+
+// Event-timeline log row (32px), columnar: --bg-inset gutter with node · mono
+// timestamp · tone-tinted event chip · detail · numeric qty · person · muted
+// click-to-copy event_id. Info-tone chips stay neutral so pass/fail color reads.
 export function TimelineRow({
   timestamp,
-  eventType,
+  label,
   eventId,
   tone = 'info',
-  children,
+  detail,
+  qty,
+  who,
 }: {
   timestamp: string;
-  eventType: string;
+  label: string;
   eventId: string;
   tone?: StatusTone;
-  children?: ReactNode;
+  detail?: string;
+  qty?: number | null;
+  who?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -38,10 +48,20 @@ export function TimelineRow({
         />
       </div>
       <span className="w-[150px] shrink-0 font-mono text-[11px] text-text-muted">{timestamp}</span>
-      <span className="shrink-0 rounded-sm bg-bg-inset px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
-        {eventLabel(eventType)}
+      <span
+        className="w-[88px] shrink-0 rounded-sm px-1.5 py-0.5 text-center font-mono text-[11px]"
+        style={{
+          background: TONE_BG[tone],
+          color: tone === 'info' ? 'var(--color-text-secondary)' : TONE_COLOR[tone],
+        }}
+      >
+        {label}
       </span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-text-secondary">{children}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-text-secondary">{detail ?? ''}</span>
+      <span className="w-[52px] shrink-0 text-right font-mono text-[12px] text-text-secondary">
+        {qty != null ? qty : ''}
+      </span>
+      <span className="w-[96px] shrink-0 truncate text-[12px] text-text-muted">{who ?? ''}</span>
       <button
         type="button"
         onClick={() => {
@@ -54,6 +74,21 @@ export function TimelineRow({
       >
         {copied ? 'copied' : eventId}
       </button>
+    </div>
+  );
+}
+
+// Column captions matching TimelineRow's grid, for the top of the log.
+export function TimelineHeader() {
+  return (
+    <div className="flex items-center gap-3 border-b border-border-faint pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+      <span className="w-6 shrink-0" />
+      <span className="w-[150px] shrink-0">Time</span>
+      <span className="w-[88px] shrink-0 text-center">Event</span>
+      <span className="min-w-0 flex-1">Detail</span>
+      <span className="w-[52px] shrink-0 text-right">Qty</span>
+      <span className="w-[96px] shrink-0">By</span>
+      <span className="shrink-0">Source ID</span>
     </div>
   );
 }

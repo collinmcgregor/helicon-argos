@@ -95,7 +95,8 @@ function TrendPlot({
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max);
   const xStep = Math.max(1, Math.ceil(n / 6));
   const xTicks: number[] = [];
-  for (let i = 0; i < n - 2; i += xStep) xTicks.push(i);
+  // stop early enough that the last interior tick never crowds the end label
+  for (let i = 0; i <= n - 1 - Math.ceil(xStep * 0.7); i += xStep) xTicks.push(i);
   if (n > 0) xTicks.push(n - 1);
 
   const fmtVal = (v: number) =>
@@ -155,7 +156,12 @@ function TrendPlot({
               strokeWidth={1}
               strokeDasharray="4 4"
             />
-            <text x={width - pad.r} y={y(reference.value) - 4} textAnchor="end" className="fill-text-muted font-mono text-[10px]">
+            <text
+              x={width - pad.r}
+              y={y(reference.value + (reference.band ?? 0)) - 5}
+              textAnchor="end"
+              className="fill-text-muted font-mono text-[10px]"
+            >
               {reference.label}
             </text>
           </>

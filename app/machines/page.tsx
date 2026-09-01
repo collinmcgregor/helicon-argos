@@ -7,9 +7,18 @@ import { Panel } from '@/components/Panel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Table, THead, Th, Tr, Td } from '@/components/Table';
 import { listMachines } from '@/lib/queries/machines';
+import { getMachineStrip } from '@/lib/queries/overview';
 import { machineLabel } from '@/lib/present';
+import { Sparkline } from '@/app/overview-charts';
 
 const nf = new Intl.NumberFormat('en-US');
+
+const TONE_COLOR: Record<string, string> = {
+  ok: 'var(--color-text-muted)',
+  warn: 'var(--color-status-warn)',
+  critical: 'var(--color-status-critical)',
+  info: 'var(--color-status-info)',
+};
 
 export default async function MachinesPage({
   searchParams,
@@ -19,7 +28,8 @@ export default async function MachinesPage({
   const sp = await searchParams;
   const facilityQs =
     sp.facility === 'la_01' || sp.facility === 'la_02' ? `?facility=${sp.facility}` : '';
-  const machines = await listMachines(sql);
+  const [machines, strip] = await Promise.all([listMachines(sql), getMachineStrip(sql)]);
+  const weeklies = new Map(strip.map((s) => [s.machine_id, s.weeklyMedians]));
 
   return (
     <div className="flex max-w-6xl flex-col gap-3">
@@ -38,6 +48,7 @@ export default async function MachinesPage({
               <Th numeric>Median cycle</Th>
               <Th numeric>Fleet median</Th>
               <Th numeric>Drift</Th>
+              <Th>Trend</Th>
               <Th>Last event</Th>
             </tr>
           </THead>
@@ -75,6 +86,14 @@ export default async function MachinesPage({
                   {m.cycleTimeDriftPct !== null
                     ? `${m.cycleTimeDriftPct > 0 ? '+' : ''}${Math.round(m.cycleTimeDriftPct)}%`
                     : '—'}
+                </Td>
+                <Td>
+                  {(weeklies.get(m.machine_id) ?? []).length > 1 && (
+                    <Sparkline
+                      values={weeklies.get(m.machine_id)!}
+                      stroke={TONE_COLOR[m.statusTone]}
+                    />
+                  )}
                 </Td>
                 <Td mono>{m.lastEventAt ? formatDate(m.lastEventAt) : '—'}</Td>
               </Tr>

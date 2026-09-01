@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { formatDateShort } from '@/lib/display';
 import type { TrendPoint } from '@/lib/queries/overview';
+import { useMeasuredWidth } from '@/lib/useMeasuredWidth';
 
 // Laminate chart rules (ARGOS.md §5): fixed series colors, chart-grid gridlines,
 // 11px mono axis text, no dual axes. Pure SVG in measured pixel space so axis
@@ -16,22 +17,6 @@ const TONE_COLOR: Record<string, string> = {
   critical: 'var(--color-status-critical)',
   info: 'var(--color-status-info)',
 };
-
-function useMeasuredWidth(fallback = 620) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(fallback);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w) setWidth(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return { ref, width };
-}
 
 const compact = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
 const plain = new Intl.NumberFormat('en-US');

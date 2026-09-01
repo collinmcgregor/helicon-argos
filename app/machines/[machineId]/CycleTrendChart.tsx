@@ -1,11 +1,12 @@
-import { formatDate, formatDateShort, formatEntityId } from '@/lib/display';
-import type { RecoveredIncident, WeeklyTrendPoint } from '@/lib/queries/machines';
-import { eventLabel } from '@/lib/present';
+'use client';
 
-const W = 720;
+import { useState } from 'react';
+import { formatDate, formatDateShort, formatEntityId, formatMinutes } from '@/lib/display';
+import type { RecoveredIncident, WeeklyTrendPoint } from '@/lib/queries/machines';
+import { useMeasuredWidth } from '@/lib/useMeasuredWidth';
+
 const H = 240;
 const M = { top: 30, right: 16, bottom: 26, left: 52 };
-const IW = W - M.left - M.right;
 const IH = H - M.top - M.bottom;
 
 const nf = new Intl.NumberFormat('en-US');
@@ -23,10 +24,15 @@ export function CycleTrendChart({
   points: WeeklyTrendPoint[];
   incident: RecoveredIncident | null;
 }) {
+  const { ref, width } = useMeasuredWidth(720);
+  const [hover, setHover] = useState<number | null>(null);
+
   const values = points
     .flatMap((p) => [p.machineMedianSeconds, p.fleetMedianSeconds])
     .filter((v): v is number => v !== null);
   if (points.length === 0 || values.length === 0) return null;
+
+  const IW = Math.max(width - M.left - M.right, 10);
 
   // y domain and ticks are computed in whole minutes so labels read cleanly
   const loMin = Math.max(0, Math.floor(Math.min(...values) / 60) - 1);
@@ -68,6 +74,25 @@ export function CycleTrendChart({
       )
     : [];
 
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    let best = 0;
+    let bestDist = Infinity;
+    points.forEach((p, i) => {
+      const d = Math.abs(weekX(p) - px);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    setHover(best);
+  };
+
+  const h = hover != null ? points[hover] : null;
+  const hx = h ? weekX(h) : 0;
+  const tooltipLeft = h != null && hx > width * 0.7;
+
   return (
     <div>
       <div className="flex items-center gap-4 pb-2 font-mono text-[11px] text-text-muted">
@@ -91,11 +116,19 @@ export function CycleTrendChart({
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ minWidth: 560 }} role="img" aria-label={`Weekly median cycle time for ${machineId} vs fleet`}>
+      <div ref={ref} className="relative">
+        <svg
+          width={width}
+          height={H}
+          className="block"
+          role="img"
+          aria-label={`Weekly median cycle time for ${machineId} vs fleet`}
+          onPointerMove={onMove}
+          onPointerLeave={() => setHover(null)}
+        >
           {yTicks.map((v) => (
             <g key={v}>
-              <line x1={M.left} x2={W - M.right} y1={y(v)} y2={y(v)} stroke="var(--color-chart-grid)" strokeWidth="1" />
+              <line x1={M.left} x2={width - M.right} y1={y(v)} y2={y(v)} stroke="var(--color-chart-grid)" strokeWidth="1" />
               <text x={M.left - 6} y={y(v) + 3.5} textAnchor="end" fontSize="11" fill="var(--color-text-muted)" fontFamily="var(--font-plex-mono)">
                 {nf.format(v / 60)}m
               </text>
@@ -131,12 +164,38 @@ export function CycleTrendChart({
           {points.map(
             (p) =>
               p.machineMedianSeconds !== null && (
-                <rect key={p.weekStart} x={weekX(p) - 2} y={y(p.machineMedianSeconds) - 2} width="4" height="4" fill="var(--color-series-1)">
-                  <title>{`week of ${formatDate(p.weekStart)} · ${(p.machineMedianSeconds / 60).toFixed(1)} min median (${nf.format(p.machineMedianSeconds)}s) · ${nf.format(p.cycleCount)} cycles`}</title>
-                </rect>
+                <rect key={p.weekStart} x={weekX(p) - 2} y={y(p.machineMedianSeconds) - 2} width="4" height="4" fill="var(--color-series-1)" />
               ),
           )}
+
+          {h && (
+            <>
+              <line x1={hx} x2={hx} y1={M.top} y2={H - M.bottom} stroke="var(--color-border-strong)" strokeWidth="1" />
+              {h.machineMedianSeconds !== null && (
+                <circle cx={hx} cy={y(h.machineMedianSeconds)} r={3.5} fill="var(--color-series-1)" />
+              )}
+              {h.fleetMedianSeconds !== null && (
+                <circle cx={hx} cy={y(h.fleetMedianSeconds)} r={3} fill="var(--color-text-muted)" />
+              )}
+            </>
+          )}
         </svg>
+        {h && (
+          <div
+            className="pointer-events-none absolute top-6 z-10 rounded-sm border border-border-strong bg-bg-1 px-2.5 py-1.5"
+            style={tooltipLeft ? { right: width - hx + 8 } : { left: hx + 8 }}
+          >
+            <div className="font-mono text-[10px] text-text-muted">week of {formatDate(h.weekStart)}</div>
+            <div className="mt-0.5 font-mono text-[12.5px] text-text-primary">
+              {h.machineMedianSeconds !== null
+                ? `${formatMinutes(h.machineMedianSeconds)} · ${nf.format(h.cycleCount)} cycles`
+                : 'no cycles'}
+            </div>
+            <div className="font-mono text-[11px] text-text-secondary">
+              {h.fleetMedianSeconds !== null ? `fleet ${formatMinutes(h.fleetMedianSeconds)}` : 'no fleet data'}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

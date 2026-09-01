@@ -1,13 +1,42 @@
+import Link from 'next/link';
+import type { Route } from 'next';
 import { sql } from '@/lib/db';
-import { EVENT_HORIZON_DISPLAY, formatDateShort, formatEntityId, humanizeText } from '@/lib/display';
-import type { FacilityId } from '@/lib/types';
-import { AlertRow } from '@/components/AlertRow';
+import {
+  EVENT_HORIZON_DISPLAY,
+  formatDateShort,
+  formatEntityId,
+  humanizeText,
+} from '@/lib/display';
+import type { FacilityId, Severity } from '@/lib/types';
 import { EmptyState } from '@/components/EmptyState';
 import { PageTitle } from '@/components/PageTitle';
 import { Panel } from '@/components/Panel';
-import { getAlertSummaries } from '@/lib/queries/machines';
+import { StatusBadge } from '@/components/StatusBadge';
+import { getAlertSummaries, type AlertSummary } from '@/lib/queries/machines';
 
 const SEVERITY_ORDER = { critical: 0, warn: 1, info: 2 } as const;
+
+const SEVERITY_COLOR: Record<Severity, string> = {
+  critical: 'var(--color-status-critical)',
+  warn: 'var(--color-status-warn)',
+  info: 'var(--color-status-info)',
+};
+
+// One verb phrase per rule: what to do about it, stated the same way every time.
+function actionFor(a: AlertSummary): string {
+  switch (a.rule) {
+    case 'cycle_time_vs_baseline':
+      return `Investigate ${formatEntityId(a.implicated_ids[0] ?? '')}`;
+    case 'overdue_incomplete':
+      return 'Open overdue jobs';
+    case 'blocked_or_held':
+      return 'Open blocked jobs';
+    case 'recovered_incident':
+      return `Review ${formatEntityId(a.implicated_ids[0] ?? '')} incident`;
+    default:
+      return 'Investigate';
+  }
+}
 
 export default async function AlertsPage({
   searchParams,
@@ -35,23 +64,55 @@ export default async function AlertsPage({
             queryContext={facility ? `facility=${facility}` : undefined}
           />
         ) : (
-          alerts.map((a) => (
-            <AlertRow
-              key={a.alert_id}
-              severity={a.severity}
-              title={humanizeText(a.title)}
-              explanation={humanizeText(a.explanation)}
-              impact={a.businessImpact ? humanizeText(a.businessImpact) : undefined}
-              ids={[...a.implicated_ids.map(formatEntityId), ...a.supporting_event_ids.slice(0, 3)]}
-              timeLabel={a.latest_event_at ? formatDateShort(a.latest_event_at) : undefined}
-              href={`${a.href}${facility ? `${a.href.includes('?') ? '&' : '?'}facility=${facility}` : ''}`}
-            />
-          ))
+          alerts.map((a) => {
+            const href = `${a.href}${facility ? `${a.href.includes('?') ? '&' : '?'}facility=${facility}` : ''}`;
+            return (
+              <Link
+                key={a.alert_id}
+                href={href as Route}
+                className="block border-b border-border-faint px-4 py-3 transition-colors duration-100 last:border-b-0 hover:bg-bg-3"
+                style={{ borderLeft: `3px solid ${SEVERITY_COLOR[a.severity]}` }}
+              >
+                <div className="flex items-center gap-2">
+                  <StatusBadge tone={a.severity} label={a.severity} />
+                  <span className="text-[13px] font-semibold text-text-primary">
+                    {humanizeText(a.title)}
+                  </span>
+                  <span className="ml-auto flex items-center gap-3">
+                    {a.latest_event_at && (
+                      <span className="font-mono text-[11px] text-text-muted">
+                        {formatDateShort(a.latest_event_at)}
+                      </span>
+                    )}
+                    <span className="text-[12.5px] text-accent">{actionFor(a)} →</span>
+                  </span>
+                </div>
+                <div className="mt-1 text-[12.5px] text-text-secondary">
+                  {humanizeText(a.explanation)}
+                </div>
+                {a.businessImpact && (
+                  <div className="mt-0.5 text-[12.5px]" style={{ color: 'var(--color-accent-resin)' }}>
+                    {humanizeText(a.businessImpact)}
+                  </div>
+                )}
+                <div className="mt-1.5 flex items-baseline gap-2 font-mono text-[11px]">
+                  <span className="font-sans text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                    Evidence
+                  </span>
+                  <span className="text-text-muted">
+                    {a.supporting_event_ids.slice(0, 4).join('  ')}
+                    {a.supporting_event_ids.length > 4 &&
+                      `  +${a.supporting_event_ids.length - 4} more`}
+                  </span>
+                </div>
+              </Link>
+            );
+          })
         )}
       </Panel>
       <span className="text-[11px] text-text-muted">
-        Alerts are query-time derived findings over source events — never editable tickets. Every
-        row carries its rule, implicated objects, and supporting event_ids.
+        Derived at query time from source events — never editable tickets. Event IDs are the raw
+        audit records behind each finding.
       </span>
     </div>
   );
